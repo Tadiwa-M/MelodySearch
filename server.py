@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, session
 import logging
 import os
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyClientCredentials
 from song_db import save_song_to_db, load_song_db
 from flask_session import Session
 import requests
@@ -37,15 +37,12 @@ SCOPE = 'user-read-private user-read-email'
 CACHE_PATH = '.cache'
 
 
-def get_auth_manager():
-    return SpotifyOAuth(
+def get_spotify_client():
+    auth_manager = SpotifyClientCredentials(
         client_id=SPOTIFY_CLIENT_ID,
-        client_secret=SPOTIFY_CLIENT_SECRET,
-        redirect_uri=SPOTIFY_REDIRECT_URI,
-        scope=SCOPE,
-        cache_path=CACHE_PATH,
-        show_dialog=True
+        client_secret=SPOTIFY_CLIENT_SECRET
     )
+    return spotipy.Spotify(auth_manager=auth_manager)
 
 
 def download_and_analyze_preview(preview_url):
@@ -238,7 +235,7 @@ def search_song():
         return redirect('/login')
 
     try:
-        sp = spotipy.Spotify(auth_manager=get_auth_manager())
+        sp = get_spotify_client()
         data = request.json
         song_name = data.get('song_name')
 
@@ -1130,7 +1127,7 @@ def upload_audio():
             save_song_to_db(uploaded_song)
 
             # Find similar tracks using existing metadata system
-            sp = spotipy.Spotify(auth_manager=get_auth_manager())
+            sp = get_spotify_client()
             similarity_engine = MetadataSimilarityEngine(sp)
 
             # Create pseudo-metadata for searching (since we don't have genre info)
