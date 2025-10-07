@@ -645,17 +645,26 @@
                 });
             }
 
-            handleFileSelection(file) {
+           handleFileSelection(file) {
                 const uploadArea = document.getElementById('fileUploadArea');
                 const uploadBtn = document.getElementById('uploadBtn');
                 const placeholder = uploadArea.querySelector('.upload-placeholder');
+                const fileInput = document.getElementById('audioFile');
 
-                if (!file) return;
+                if (!file) {
+                    console.log('No file provided to handleFileSelection');
+                    return;
+                }
+
+                console.log('Handling file:', file.name, file.type, file.size);
 
                 // Check file type
-                const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg'];
-                if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|flac|m4a|ogg)$/i)) {
+                const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg', 'audio/x-m4a'];
+                const allowedExtensions = /\.(mp3|wav|flac|m4a|ogg)$/i;
+
+                if (!allowedTypes.includes(file.type) && !file.name.match(allowedExtensions)) {
                     this.showError('Please select a valid audio file (MP3, WAV, FLAC, M4A, or OGG)');
+                    console.error('Invalid file type:', file.type, file.name);
                     return;
                 }
 
@@ -664,6 +673,14 @@
                     this.showError('File size must be less than 16MB');
                     return;
                 }
+
+                // IMPORTANT: Manually set the file to the input if it came from drag-drop
+                // Create a new DataTransfer to properly set the file
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                console.log('File set to input, files count:', fileInput.files.length);
 
                 // Update UI
                 uploadArea.classList.add('file-selected');
@@ -682,10 +699,18 @@
                 const fileInput = document.getElementById('audioFile');
                 const uploadBtn = document.getElementById('uploadBtn');
 
-                if (!fileInput.files[0]) {
+                // Debug: Check if file exists
+                console.log('File input:', fileInput);
+                console.log('Files:', fileInput.files);
+                console.log('Files length:', fileInput.files.length);
+
+                if (!fileInput.files || fileInput.files.length === 0) {
                     this.showError('Please select an audio file first');
                     return;
                 }
+
+                const file = fileInput.files[0];
+                console.log('Selected file:', file.name, file.size);
 
                 const originalBtnText = uploadBtn.textContent;
                 uploadBtn.disabled = true;
@@ -697,12 +722,18 @@
 
                 try {
                     const formData = new FormData();
-                    formData.append('audio_file', fileInput.files[0]);
+                    formData.append('audio_file', file);
+
+                    // Debug: Check FormData
+                    console.log('FormData created, sending to /upload');
 
                     const response = await fetch('/upload', {
                         method: 'POST',
                         body: formData
+                        // DO NOT set Content-Type header - browser sets it automatically with boundary
                     });
+
+                    console.log('Response status:', response.status);
 
                     if (!response.ok) {
                         const errorData = await response.json();
@@ -710,6 +741,8 @@
                     }
 
                     const data = await response.json();
+                    console.log('Upload successful:', data);
+
                     this.displayResults(data);
                     this.resetUploadForm();
 
