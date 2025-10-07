@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+
+# Flask
+.cache
+.cache-*
+flask_session/
+instance/
+
+# Environment variables
+.env
+.env.local
+
+# PyCharm
+.idea/
+*.iml
+
+# Database
+Data/
+*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

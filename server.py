@@ -19,7 +19,7 @@ import librosa
 import numpy as np
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-12345')
 
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
@@ -30,9 +30,9 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
 logging.basicConfig(level=logging.DEBUG)
 
 # Spotify API credentials and redirect URI (same as before)
-SPOTIFY_CLIENT_ID = '9818b6e351d84e1ab29bf345fa7ee898'
-SPOTIFY_CLIENT_SECRET = '3dc0f649da4b4bd1bf30966ea4f3f49e'
-SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:5000/callback'
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID', '9818b6e351d84e1ab29bf345fa7ee898')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET', '3dc0f649da4b4bd1bf30966ea4f3f49e')
+SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback')
 SCOPE = 'user-read-private user-read-email'
 CACHE_PATH = '.cache'
 
@@ -1332,4 +1332,6 @@ def calculate_vector_similarity(vec1, vec2):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug)
