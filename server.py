@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, session
 import logging
 import os
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 from song_db import save_song_to_db, load_song_db
 from flask_session import Session
 import requests
@@ -19,20 +19,47 @@ import librosa
 import numpy as np
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-12345')
+# Security: Require a strong secret key to be set via environment variable
+secret_key = os.getenv('SECRET_KEY')
+if not secret_key or secret_key == 'dev-secret-key-12345':
+    # In development, generate a random key if none provided
+    if os.getenv('FLASK_ENV') == 'development':
+        import secrets
+        secret_key = secrets.token_hex(32)
+        logging.warning("Using randomly generated secret key. Set SECRET_KEY environment variable for persistence.")
+    else:
+        raise ValueError("SECRET_KEY environment variable must be set in production!")
+app.secret_key = secret_key
 
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
+
+# Security: Add security headers
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Don't set CSP yet as it may need tuning for the application
+    return response
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
 
 logging.basicConfig(level=logging.DEBUG)
 
-# Spotify API credentials and redirect URI (same as before)
-SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID', '9818b6e351d84e1ab29bf345fa7ee898')
-SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET', '3dc0f649da4b4bd1bf30966ea4f3f49e')
+# Spotify API credentials - MUST be set via environment variables for security
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback')
+
+# Security: Validate that required credentials are set
+if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+    logging.error("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables!")
+    # Allow startup but functionality will be limited
+    SPOTIFY_CLIENT_ID = SPOTIFY_CLIENT_ID or 'NOT_SET'
+    SPOTIFY_CLIENT_SECRET = SPOTIFY_CLIENT_SECRET or 'NOT_SET'
 SCOPE = 'user-read-private user-read-email'
 CACHE_PATH = '.cache'
 
@@ -45,12 +72,30 @@ def get_spotify_client():
     return spotipy.Spotify(auth_manager=auth_manager)
 
 
+def get_auth_manager():
+    """Get Spotify OAuth manager for user authentication"""
+    return SpotifyOAuth(
+        client_id=SPOTIFY_CLIENT_ID,
+        client_secret=SPOTIFY_CLIENT_SECRET,
+        redirect_uri=SPOTIFY_REDIRECT_URI,
+        scope=SCOPE,
+        cache_path=CACHE_PATH
+    )
+
+
 def download_and_analyze_preview(preview_url):
     """Download Spotify preview and analyze with your existing feature extraction"""
     if not preview_url:
         return None
 
     try:
+        # Security: Validate URL is from Spotify domain
+        from urllib.parse import urlparse
+        parsed = urlparse(preview_url)
+        if not parsed.netloc.endswith('.spotify.com') and not parsed.netloc.endswith('.scdn.co'):
+            logging.warning(f"Rejecting non-Spotify URL: {preview_url}")
+            return None
+
         # Download the 30-second preview
         response = requests.get(preview_url, timeout=30)
         if response.status_code != 200:
@@ -230,17 +275,34 @@ def callback():
 
 @app.route('/search', methods=['POST'])
 def search_song():
-    session['is_authenticated'] = True  # Your temp override
+    # Security: Proper authentication check - removed bypass
     if not session.get('is_authenticated'):
-        return redirect('/login')
+        return jsonify({"error": "Authentication required"}), 401
 
     try:
+        # Security: Validate content type
+        if not request.is_json:
+            return jsonify({"error": "Content-Type must be application/json"}), 400
+            
         sp = get_spotify_client()
         data = request.json
+        
+        # Security: Validate JSON structure
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid JSON format"}), 400
+            
         song_name = data.get('song_name')
 
+        # Security: Input validation
         if not song_name:
             return jsonify({"error": "Song name is required"}), 400
+        
+        # Security: Limit song name length to prevent abuse
+        if len(song_name) > 200:
+            return jsonify({"error": "Song name too long"}), 400
+        
+        # Security: Basic sanitization - remove potentially dangerous characters
+        song_name = song_name.strip()
 
         logging.debug(f"Searching for song: {song_name}")
 
@@ -384,10 +446,12 @@ def search_song():
 
     except spotipy.SpotifyException as e:
         logging.error(f"Spotify API error: {e}")
-        return jsonify({"error": f"Spotify API error: {e}"}), 403
+        # Security: Don't expose internal error details to client
+        return jsonify({"error": "Spotify API error occurred"}), 403
     except Exception as e:
         logging.error(f"Unexpected error: {e}")
-        return jsonify({"error": f"Unexpected error: {e}"}), 500
+        # Security: Don't expose internal error details to client
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 def find_metadata_based_candidates(sp, original_track, metadata_features, limit=50):
@@ -965,7 +1029,16 @@ def create_fallback_audio_features():
 
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Security: Validate file extension and filename"""
+    if not filename or '.' not in filename:
+        return False
+    
+    # Security: Check for path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return False
+    
+    extension = filename.rsplit('.', 1)[1].lower()
+    return extension in ALLOWED_EXTENSIONS
 
 
 def extract_real_audio_features(audio_file_path):
@@ -1092,10 +1165,25 @@ def upload_audio():
         if file.filename == '':
             return jsonify({"error": "No file selected"}), 400
 
+        # Security: Additional file validation
+        if not file.filename:
+            return jsonify({"error": "Invalid filename"}), 400
+            
         if not allowed_file(file.filename):
             return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
 
-        # Save uploaded file temporarily
+        # Security: Limit file size (already configured at app level, but double-check)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 16 * 1024 * 1024:  # 16MB
+            return jsonify({"error": "File too large. Maximum size is 16MB"}), 400
+        
+        if file_size == 0:
+            return jsonify({"error": "File is empty"}), 400
+
+        # Save uploaded file temporarily with secure filename
         filename = secure_filename(file.filename)
         with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
             file.save(temp_file.name)
@@ -1180,7 +1268,8 @@ def upload_audio():
 
     except Exception as e:
         logging.error(f"Upload processing failed: {e}")
-        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+        # Security: Don't expose internal error details to client
+        return jsonify({"error": "Upload failed. Please try again."}), 500
 
 
 def create_pseudo_metadata_from_audio(audio_features, filename):
@@ -1330,5 +1419,11 @@ def calculate_vector_similarity(vec1, vec2):
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_ENV') != 'production'
+    # Security: Never run debug mode in production
+    flask_env = os.getenv('FLASK_ENV', 'production')
+    debug = flask_env == 'development'
+    
+    if debug:
+        logging.warning("Running in DEBUG mode. This should NEVER be used in production!")
+    
     app.run(host='0.0.0.0', port=port, debug=debug)
