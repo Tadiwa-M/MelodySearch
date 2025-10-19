@@ -9,6 +9,9 @@ import sys
 import subprocess
 import tempfile
 
+# Get the project root directory
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 def test_missing_secret_key():
     """Test that app fails when SECRET_KEY is not set"""
     print("Test 1: Checking SECRET_KEY requirement...")
@@ -36,7 +39,7 @@ except RuntimeError as e:
     
     result = subprocess.run(
         [sys.executable, "-c", test_code],
-        cwd="/home/runner/work/MelodySearch/MelodySearch",
+        cwd=PROJECT_ROOT,
         capture_output=True,
         text=True
     )
@@ -78,7 +81,7 @@ except RuntimeError as e:
     
     result = subprocess.run(
         [sys.executable, "-c", test_code],
-        cwd="/home/runner/work/MelodySearch/MelodySearch",
+        cwd=PROJECT_ROOT,
         capture_output=True,
         text=True
     )
@@ -97,18 +100,18 @@ def test_no_hardcoded_credentials():
     """Test that no hardcoded credentials exist in the codebase"""
     print("\nTest 3: Checking for hardcoded credentials...")
     
-    # Common patterns for credentials
+    # Use partial patterns to avoid including full credentials in test code
     patterns = [
-        "9818b6e351d84e1ab29bf345fa7ee898",  # Old client ID
-        "3dc0f649da4b4bd1bf30966ea4f3f49e",  # Old client secret
-        "dev-secret-key-12345"                # Old weak secret key
+        "9818b6e351d84e",  # Partial old client ID
+        "3dc0f649da4b4",   # Partial old client secret
+        "dev-secret-key"   # Partial weak secret key
     ]
     
     found_credentials = []
     for pattern in patterns:
         result = subprocess.run(
             ["grep", "-r", pattern, ".", "--include=*.py", "--exclude=test_security.py"],
-            cwd="/home/runner/work/MelodySearch/MelodySearch",
+            cwd=PROJECT_ROOT,
             capture_output=True,
             text=True
         )
@@ -122,7 +125,7 @@ def test_no_hardcoded_credentials():
     else:
         print("✗ Found hardcoded credentials:")
         for cred, location in found_credentials:
-            print(f"  - {cred[:20]}... in:")
+            print(f"  - Pattern '{cred}...' found in:")
             print(f"    {location.strip()}")
         return False
 
@@ -131,14 +134,15 @@ def test_gunicorn_version():
     """Test that gunicorn is at secure version"""
     print("\nTest 4: Checking gunicorn version...")
     
-    with open("/home/runner/work/MelodySearch/MelodySearch/requirements.txt", "r") as f:
+    requirements_path = os.path.join(PROJECT_ROOT, "requirements.txt")
+    with open(requirements_path, "r") as f:
         content = f.read()
         
-    if "gunicorn==22.0.0" in content:
-        print("✓ gunicorn is at secure version (22.0.0)")
+    if "gunicorn==22.0.0" in content or "gunicorn>=22.0.0" in content:
+        print("✓ gunicorn is at secure version (22.0.0+)")
         return True
-    elif "gunicorn==21.2.0" in content:
-        print("✗ gunicorn is still at vulnerable version (21.2.0)")
+    elif "gunicorn==21." in content:
+        print("✗ gunicorn is still at vulnerable version (21.x)")
         return False
     else:
         print("⚠ gunicorn version unknown")
@@ -156,7 +160,7 @@ def test_security_files_exist():
     
     all_exist = True
     for file in required_files:
-        path = os.path.join("/home/runner/work/MelodySearch/MelodySearch", file)
+        path = os.path.join(PROJECT_ROOT, file)
         if os.path.exists(path):
             print(f"✓ {file} exists")
         else:
