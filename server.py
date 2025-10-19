@@ -30,7 +30,9 @@ def set_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Only set HSTS for HTTPS connections
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https://api.spotify.com"
     return response
 
@@ -264,8 +266,8 @@ def search_song():
         if len(song_name) > 200:
             return jsonify({"error": "Song name too long (max 200 characters)"}), 400
         
-        # Prevent injection attacks - remove potentially dangerous characters
-        if re.search(r'[<>\"\'\\]', song_name):
+        # Prevent injection attacks - allow apostrophes but block dangerous HTML/script characters
+        if re.search(r'[<>\"\\]', song_name):
             return jsonify({"error": "Invalid characters in song name"}), 400
 
         logging.debug(f"Searching for song: {song_name}")
