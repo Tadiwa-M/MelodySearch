@@ -110,9 +110,9 @@ curl -X POST http://127.0.0.1:5000/upload \
 
 ## Task Limitations
 
-- ⚠️ Requires Spotify API credentials (free to get)
+- ⚠️ Requires Spotify API credentials (free registration, subject to rate limits)
 - ⚠️ Upload files limited to 16MB
-- ⚠️ Analysis takes 2-10 seconds depending on method
+- ⚠️ Analysis takes approximately 2-10 seconds depending on method
 - ⚠️ Recommendations limited to songs in Spotify catalog
 
 ## What MelodySearch CANNOT Do
@@ -120,7 +120,7 @@ curl -X POST http://127.0.0.1:5000/upload \
 - ❌ Play music (use Spotify for that)
 - ❌ Download songs (copyright restrictions)
 - ❌ Identify unknown songs (use Shazam instead)
-- ❌ Create playlists in your Spotify account (yet)
+- ❌ Create playlists in your Spotify account
 - ❌ Real-time streaming analysis
 
 ## Summary
