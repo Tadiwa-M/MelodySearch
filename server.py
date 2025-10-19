@@ -17,9 +17,24 @@ import tempfile
 from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
+import re
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-12345')
+app.secret_key = os.getenv('SECRET_KEY')
+if not app.secret_key:
+    raise RuntimeError("SECRET_KEY environment variable must be set for security")
+
+# Security headers
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Only set HSTS for HTTPS connections
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https://api.spotify.com"
+    return response
 
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
@@ -29,10 +44,14 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
 
 logging.basicConfig(level=logging.DEBUG)
 
-# Spotify API credentials and redirect URI (same as before)
-SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID', '9818b6e351d84e1ab29bf345fa7ee898')
-SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET', '3dc0f649da4b4bd1bf30966ea4f3f49e')
+# Spotify API credentials and redirect URI
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback')
+
+# Validate required credentials
+if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+    raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables must be set")
 SCOPE = 'user-read-private user-read-email'
 CACHE_PATH = '.cache'
 
@@ -241,6 +260,15 @@ def search_song():
 
         if not song_name:
             return jsonify({"error": "Song name is required"}), 400
+
+        # Input validation and sanitization
+        song_name = song_name.strip()
+        if len(song_name) > 200:
+            return jsonify({"error": "Song name too long (max 200 characters)"}), 400
+        
+        # Prevent injection attacks - allow apostrophes but block dangerous HTML/script characters
+        if re.search(r'[<>\"\\]', song_name):
+            return jsonify({"error": "Invalid characters in song name"}), 400
 
         logging.debug(f"Searching for song: {song_name}")
 
