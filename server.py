@@ -10,13 +10,12 @@ import tempfile
 from feature_extraction import HybridFeatureExtractor
 from metadata_similarity_engine import MetadataSimilarityEngine
 import random
-import requests
 import time
 import json
-import tempfile
 from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 # Security: Require a strong secret key to be set via environment variable
@@ -40,14 +39,18 @@ def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Only set HSTS when using HTTPS
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     # Don't set CSP yet as it may need tuning for the application
     return response
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
 
-logging.basicConfig(level=logging.DEBUG)
+# Security: Configure logging level based on environment
+log_level = logging.DEBUG if os.getenv('FLASK_ENV') == 'development' else logging.INFO
+logging.basicConfig(level=log_level)
 
 # Spotify API credentials - MUST be set via environment variables for security
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -90,7 +93,6 @@ def download_and_analyze_preview(preview_url):
 
     try:
         # Security: Validate URL is from Spotify domain
-        from urllib.parse import urlparse
         parsed = urlparse(preview_url)
         if not parsed.netloc.endswith('.spotify.com') and not parsed.netloc.endswith('.scdn.co'):
             logging.warning(f"Rejecting non-Spotify URL: {preview_url}")
