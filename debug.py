@@ -1,11 +1,16 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
-# Your credentials
-SPOTIFY_CLIENT_ID = '9818b6e351d84e1ab29bf345fa7ee898'
-SPOTIFY_CLIENT_SECRET = '3dc0f649da4b4bd1bf30966ea4f3f49e'
-SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:5000/callback'
+# Your credentials - MUST be set via environment variables
+import os
+
+SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
+SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback')
 SCOPE = 'user-read-private user-read-email'
+
+if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+    raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables must be set")
 
 
 def test_spotify_endpoints():
