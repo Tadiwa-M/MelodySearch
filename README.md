@@ -141,7 +141,42 @@ Follow the prompts:
 
 ### 4. API Endpoints
 
-#### Search for a song and get recommendations
+#### Find similar songs (by title and artist) - RECOMMENDED
+```bash
+POST /similar-songs
+Content-Type: application/json
+
+{
+  "title": "Blinding Lights",
+  "artist": "The Weeknd"
+}
+```
+
+**Response:**
+```json
+{
+  "original_song": {
+    "title": "Blinding Lights",
+    "artist": "The Weeknd",
+    "spotify_id": "0VjIjW4GlUZAMYd2vXMi3b",
+    "popularity": 95,
+    "genres": ["canadian pop", "pop"],
+    "audio_features": {...}
+  },
+  "similar_songs": [
+    {
+      "title": "Save Your Tears",
+      "artist": "The Weeknd",
+      "similarity_score": 0.89,
+      "similarity_explanation": "Similar musical genres (match: 95%)",
+      "audio_features": {...}
+    }
+  ],
+  "total_matches": 10
+}
+```
+
+#### Search for a song and get recommendations (by name only)
 ```bash
 POST /search
 Content-Type: application/json
@@ -158,6 +193,8 @@ Content-Type: multipart/form-data
 
 audio_file: <your audio file>
 ```
+
+**For complete API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md)**
 
 ## Technical Details 🔧
 
