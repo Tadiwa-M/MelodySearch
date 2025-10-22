@@ -10,10 +10,8 @@ import tempfile
 from feature_extraction import HybridFeatureExtractor
 from metadata_similarity_engine import MetadataSimilarityEngine
 import random
-import requests
 import time
 import json
-import tempfile
 from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
