@@ -6,12 +6,20 @@
 
 ### Core Capabilities
 
-1. **Song Similarity Search**
+1. **Song Identification**
+   - Identify any song from user-provided audio (like Shazam)
+   - Upload audio files and get song metadata instantly
+   - Returns title, artist, album, and cover art
+   - Free tier available (50 identifications per day)
+   - Automatic Spotify metadata enrichment
+
+2. **Song Similarity Search**
    - Find songs similar to any track on Spotify
    - Discover music across genres using mathematical similarity algorithms
    - Get recommendations based on audio features and metadata
 
 2. **Multiple Analysis Methods**
+   - **Song Identification**: Uses audio fingerprinting to identify unknown songs
    - **Metadata-Based Analysis**: Uses genre, artist popularity, release year, tempo, and other metadata
    - **Audio Feature Analysis**: Extracts tempo, energy, valence, danceability, and spectral features
    - **Real Audio File Upload**: Analyze your own audio files (MP3, WAV, FLAC, M4A, OGG)
@@ -62,6 +70,7 @@
 ```
 MelodySearch/
 ├── server.py                          # Flask web server with REST API
+├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── main.py                           # Command-line interface
 ├── feature_extraction.py             # Audio feature extraction using librosa
 ├── matcher.py                        # Similarity matching algorithms
@@ -81,6 +90,7 @@ MelodySearch/
 ### Prerequisites
 - Python 3.8+
 - Spotify API credentials (Client ID and Client Secret)
+- AudD API key (optional, for song identification - free tier available)
 
 ### Installation Steps
 
@@ -95,16 +105,23 @@ MelodySearch/
    pip install -r requirements.txt
    ```
 
-3. **Set up Spotify API credentials**
+3. **Set up API credentials**
    
-   You can either:
-   - Set environment variables:
-     ```bash
-     export SPOTIFY_CLIENT_ID='your_client_id'
-     export SPOTIFY_CLIENT_SECRET='your_client_secret'
-     ```
+   Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
    
-   - Or modify the credentials directly in `server.py` (lines 33-34)
+   Edit `.env` and add your credentials:
+   - **Spotify API** (required): Get from https://developer.spotify.com/dashboard
+   - **AudD API** (optional): Get free key from https://audd.io/ (50 requests/day)
+   
+   ```bash
+   SPOTIFY_CLIENT_ID='your_spotify_client_id'
+   SPOTIFY_CLIENT_SECRET='your_spotify_client_secret'
+   AUDD_API_KEY='your_audd_api_key'  # Optional for song identification
+   SECRET_KEY='generate_a_random_secret_key'
+   ```
 
 4. **Run the application**
    
@@ -121,7 +138,47 @@ MelodySearch/
 
 ## Usage Examples 💡
 
-### 1. Web Interface - Search by Song Name
+### 1. Song Identification - Identify Unknown Songs
+
+**Use Case:** You have an audio recording and want to know what song it is.
+
+1. Start the server: `python server.py`
+2. Open http://127.0.0.1:5000
+3. Upload an audio file (MP3, WAV, FLAC, M4A, or OGG)
+4. Get instant results with:
+   - Song title
+   - Artist name
+   - Album name
+   - Cover art
+   - Release date
+   - Spotify link
+   - Additional metadata
+
+**API Usage:**
+```bash
+curl -X POST http://127.0.0.1:5000/identify \
+  -F "audio_file=@unknown_song.mp3"
+```
+
+**Response:**
+```json
+{
+  "message": "Song identified successfully",
+  "identified": true,
+  "song": {
+    "title": "Blinding Lights",
+    "artist": "The Weeknd",
+    "album": "After Hours",
+    "cover_art": "https://i.scdn.co/image/...",
+    "release_date": "2019-11-29",
+    "spotify_url": "https://open.spotify.com/track/...",
+    "genres": ["canadian pop", "pop"],
+    ...
+  }
+}
+```
+
+### 2. Web Interface - Search by Song Name
 
 1. Start the server: `python server.py`
 2. Open http://127.0.0.1:5000
@@ -130,14 +187,14 @@ MelodySearch/
 5. View similar songs with similarity scores and explanations
 6. Click "Save" on any recommendation to add it to your library
 
-### 2. Web Interface - Upload Audio File
+### 3. Web Interface - Upload Audio File for Similarity
 
 1. Click the upload area or drag & drop an audio file
 2. Supported formats: MP3, WAV, FLAC, M4A, OGG
 3. Wait for analysis (uses real audio feature extraction)
 4. View recommendations based on your uploaded audio
 
-### 3. Command Line Interface
+### 4. Command Line Interface
 
 ```bash
 python main.py
@@ -161,7 +218,50 @@ Follow the prompts:
 
 ### 5. API Endpoints
 
-#### Search for a song and get recommendations
+#### Identify a song from audio
+```bash
+POST /identify
+Content-Type: multipart/form-data
+
+audio_file: <your audio file>
+```
+
+#### Find similar songs (by title and artist) - RECOMMENDED
+```bash
+POST /similar-songs
+Content-Type: application/json
+
+{
+  "title": "Blinding Lights",
+  "artist": "The Weeknd"
+}
+```
+
+**Response:**
+```json
+{
+  "original_song": {
+    "title": "Blinding Lights",
+    "artist": "The Weeknd",
+    "spotify_id": "0VjIjW4GlUZAMYd2vXMi3b",
+    "popularity": 95,
+    "genres": ["canadian pop", "pop"],
+    "audio_features": {...}
+  },
+  "similar_songs": [
+    {
+      "title": "Save Your Tears",
+      "artist": "The Weeknd",
+      "similarity_score": 0.89,
+      "similarity_explanation": "Similar musical genres (match: 95%)",
+      "audio_features": {...}
+    }
+  ],
+  "total_matches": 10
+}
+```
+
+#### Search for a song and get recommendations (by name only)
 ```bash
 POST /search
 Content-Type: application/json
@@ -171,7 +271,7 @@ Content-Type: application/json
 }
 ```
 
-#### Upload and analyze audio file
+#### Upload and analyze audio file for similarity
 ```bash
 POST /upload
 Content-Type: multipart/form-data
@@ -217,6 +317,8 @@ DELETE /library/collections/{collection_id}
 # Get library statistics
 GET /library/stats
 ```
+
+**For complete API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md)**
 
 ## Technical Details 🔧
 
@@ -285,9 +387,14 @@ The system includes comprehensive genre mappings for:
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
 - **scipy**: Scientific computing
-- **requests**: HTTP library for API calls
+- **requests**: HTTP library for API calls (also used for AudD API)
 
 See `requirements.txt` for exact versions.
+
+### External APIs
+
+- **Spotify API**: For metadata, search, and recommendations (required)
+- **AudD API**: For song identification (optional, free tier: 50 requests/day)
 
 ## Features in Detail 🎼
 
