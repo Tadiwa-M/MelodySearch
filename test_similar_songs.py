@@ -5,6 +5,7 @@ Test script for the /similar-songs endpoint
 import os
 import sys
 import json
+import traceback
 
 # Test data
 test_cases = [
@@ -92,7 +93,6 @@ def test_endpoint_logic():
                 
             except Exception as e:
                 print(f"✗ Test failed: {e}")
-                import traceback
                 traceback.print_exc()
                 continue
         
@@ -106,7 +106,6 @@ def test_endpoint_logic():
         return False
     except Exception as e:
         print(f"\n✗ Test failed: {e}")
-        import traceback
         traceback.print_exc()
         return False
 

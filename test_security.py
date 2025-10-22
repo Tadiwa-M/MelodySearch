@@ -19,6 +19,7 @@ def test_missing_secret_key():
     # Create a minimal test that tries to import server without SECRET_KEY
     test_code = """
 import os
+import sys
 # Clear any existing SECRET_KEY
 os.environ.pop('SECRET_KEY', None)
 os.environ.pop('SPOTIFY_CLIENT_ID', None)
