@@ -1109,6 +1109,189 @@ def extract_real_audio_features(audio_file_path):
 
 
 # ADD NEW UPLOAD ROUTE
+@app.route('/similar-songs', methods=['POST'])
+def get_similar_songs():
+    """
+    Generate a list of songs similar to a given song (title and artist).
+    Returns metadata for each similar song.
+    
+    Request body:
+    {
+        "title": "Song Title",
+        "artist": "Artist Name"
+    }
+    
+    Response:
+    {
+        "original_song": {...},
+        "similar_songs": [...],
+        "total_matches": int
+    }
+    """
+    session['is_authenticated'] = True  # Temp override for non-auth setups
+    if not session.get('is_authenticated'):
+        return redirect('/login')
+
+    try:
+        sp = get_spotify_client()
+        data = request.json
+        
+        # Extract and validate input
+        title = data.get('title', '').strip()
+        artist = data.get('artist', '').strip()
+        
+        if not title:
+            return jsonify({"error": "Song title is required"}), 400
+        
+        if not artist:
+            return jsonify({"error": "Artist name is required"}), 400
+        
+        # Input validation - check length
+        if len(title) > 200:
+            return jsonify({"error": "Song title too long (max 200 characters)"}), 400
+        
+        if len(artist) > 200:
+            return jsonify({"error": "Artist name too long (max 200 characters)"}), 400
+        
+        # Prevent injection attacks
+        if re.search(r'[<>\"\\]', title) or re.search(r'[<>\"\\]', artist):
+            return jsonify({"error": "Invalid characters in song title or artist name"}), 400
+        
+        logging.debug(f"Searching for song: '{title}' by '{artist}'")
+        
+        # Search for the song using both title and artist for better accuracy
+        search_query = f"track:{title} artist:{artist}"
+        results = sp.search(q=search_query, type='track', limit=5)
+        
+        if not results['tracks']['items']:
+            # Fallback: try without strict formatting
+            search_query = f"{title} {artist}"
+            results = sp.search(q=search_query, type='track', limit=5)
+            
+            if not results['tracks']['items']:
+                return jsonify({"error": "Song not found"}), 404
+        
+        # Find the best match from results
+        track = results['tracks']['items'][0]
+        
+        # Use metadata-based similarity engine
+        similarity_engine = MetadataSimilarityEngine(sp)
+        metadata_features = similarity_engine.extract_comprehensive_metadata(
+            track['id'],
+            track
+        )
+        
+        logging.debug(f"Found song: '{track['name']}' by '{track['artists'][0]['name']}'")
+        logging.debug(f"Metadata completeness: {metadata_features.get('feature_completeness', 0):.2%}")
+        
+        # Convert metadata to audio features for response
+        pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        
+        # Structure the original song data
+        original_song = {
+            "title": track['name'],
+            "artist": track['artists'][0]['name'],
+            "spotify_id": track['id'],
+            "popularity": track['popularity'],
+            "duration_ms": track['duration_ms'],
+            "explicit": track['explicit'],
+            "preview_url": track.get('preview_url'),
+            "album": track['album']['name'],
+            "release_date": track['album']['release_date'],
+            "genres": metadata_features.get('artist_genres', []),
+            "audio_features": pseudo_audio_features
+        }
+        
+        # Find similar songs
+        logging.debug("Finding similar songs...")
+        candidate_recommendations = find_metadata_based_candidates(sp, track, metadata_features, limit=50)
+        
+        # Enhance candidates with metadata
+        enhanced_candidates = []
+        for candidate in candidate_recommendations:
+            try:
+                if candidate.get('spotify_id'):
+                    candidate_metadata = similarity_engine.extract_comprehensive_metadata(
+                        candidate['spotify_id']
+                    )
+                    
+                    enhanced_candidate = {
+                        "title": candidate.get('title', 'Unknown'),
+                        "artist": candidate.get('artist', 'Unknown'),
+                        "metadata_features": candidate_metadata,
+                        "spotify_id": candidate.get('spotify_id'),
+                        "popularity": candidate.get('popularity'),
+                        "preview_url": candidate.get('preview_url')
+                    }
+                    enhanced_candidates.append(enhanced_candidate)
+                    
+            except Exception as e:
+                logging.warning(f"Failed to analyze candidate '{candidate.get('title', 'Unknown')}': {e}")
+                continue
+        
+        logging.debug(f"Enhanced {len(enhanced_candidates)} candidates with metadata")
+        
+        # Calculate similarities
+        similar_songs = []
+        if enhanced_candidates:
+            try:
+                mathematical_matches = similarity_engine.find_metadata_similarities(
+                    metadata_features,
+                    enhanced_candidates,
+                    top_n=10
+                )
+                
+                logging.debug(f"Found {len(mathematical_matches)} similar songs")
+                
+                # Format results for response
+                for title_match, similarity, breakdown in mathematical_matches:
+                    original_candidate = next(
+                        (rec for rec in enhanced_candidates if rec['title'] == title_match),
+                        {}
+                    )
+                    
+                    candidate_features = original_candidate.get('metadata_features', {})
+                    candidate_pseudo_features = convert_metadata_to_audio_features(candidate_features)
+                    
+                    # Get full track info for additional metadata
+                    track_id = original_candidate.get('spotify_id')
+                    track_info = sp.track(track_id) if track_id else {}
+                    
+                    similar_songs.append({
+                        "title": title_match,
+                        "artist": original_candidate.get('artist', 'Unknown'),
+                        "spotify_id": original_candidate.get('spotify_id'),
+                        "popularity": original_candidate.get('popularity', 0),
+                        "duration_ms": candidate_features.get('duration_ms', 0),
+                        "explicit": candidate_features.get('explicit', False),
+                        "preview_url": original_candidate.get('preview_url'),
+                        "album": track_info.get('album', {}).get('name', 'Unknown'),
+                        "release_date": track_info.get('album', {}).get('release_date', 'Unknown'),
+                        "genres": candidate_features.get('artist_genres', []),
+                        "similarity_score": similarity,
+                        "similarity_explanation": similarity_engine.explain_metadata_similarity(breakdown),
+                        "audio_features": candidate_pseudo_features
+                    })
+                    
+            except Exception as e:
+                logging.error(f"Similarity calculation failed: {e}")
+                return jsonify({"error": "Failed to calculate similarities"}), 500
+        
+        return jsonify({
+            "original_song": original_song,
+            "similar_songs": similar_songs,
+            "total_matches": len(similar_songs),
+            "analysis_method": "metadata_based"
+        }), 200
+        
+    except spotipy.SpotifyException as e:
+        logging.error(f"Spotify API error: {e}")
+        return jsonify({"error": f"Spotify API error: {str(e)}"}), 403
+    except Exception as e:
+        logging.error(f"Unexpected error in /similar-songs: {e}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
 @app.route('/upload', methods=['POST'])
 def upload_audio():
     """Handle audio file uploads for real analysis"""
