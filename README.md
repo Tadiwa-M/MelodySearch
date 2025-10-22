@@ -7,6 +7,7 @@
 ### Core Capabilities
 
 1. **🔍 Song Identification** (NEW!)
+   - **Real-time microphone recording** - Record audio directly from your device like Shazam
    - Identify unknown songs from audio files using acoustic fingerprinting
    - Get complete metadata: title, artist, album, release date
    - View high-quality cover art
@@ -143,10 +144,21 @@ MelodySearch/
 
 ### 1. Web Interface - Identify Unknown Song (NEW!)
 
+**Option A: Record from Microphone (Like Shazam)**
 1. Start the server: `python server.py`
 2. Open http://127.0.0.1:5000
 3. Scroll to "Identify Unknown Song" section
-4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG)
+4. Click "🎤 Record from Microphone"
+5. Allow microphone access when prompted
+6. Play the song you want to identify (or let it play near your device)
+7. Click "Stop & Identify" after 10-15 seconds
+8. View complete metadata with cover art, artist, album, and links
+
+**Option B: Upload Audio File**
+1. Start the server: `python server.py`
+2. Open http://127.0.0.1:5000
+3. Scroll to "Identify Unknown Song" section
+4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG, WEBM)
 5. Click "Identify Song"
 6. View complete metadata with cover art, artist, album, and links
 

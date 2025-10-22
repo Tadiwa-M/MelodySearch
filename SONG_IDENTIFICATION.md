@@ -1,10 +1,22 @@
 # Song Identification Feature
 
-MelodySearch now includes powerful song identification capabilities using acoustic fingerprinting technology.
+MelodySearch now includes powerful song identification capabilities using acoustic fingerprinting technology - just like Shazam!
 
 ## Overview
 
-The song identification feature allows you to upload any audio file and get complete metadata about the song, including:
+The song identification feature allows you to identify songs in two ways:
+
+### 🎤 Real-time Microphone Recording (NEW!)
+- Record audio directly from your device's microphone
+- Identify songs playing around you in real-time
+- Works just like Shazam - press record, let it listen, and get instant results
+- No file upload needed
+
+### 📁 Audio File Upload
+- Upload any audio file and get complete metadata about the song
+- Supports: MP3, WAV, FLAC, M4A, OGG, WEBM
+
+**Metadata Returned:**
 - Title
 - Artist
 - Album
@@ -16,6 +28,14 @@ The song identification feature allows you to upload any audio file and get comp
 
 ## How It Works
 
+### Microphone Recording Flow
+1. **Capture Audio**: Records audio from your device's microphone using Web Audio API
+2. **Audio Fingerprinting**: Generates a unique acoustic fingerprint from the recording
+3. **Database Matching**: Compares the fingerprint against AcoustID's database of millions of songs
+4. **Metadata Retrieval**: Fetches detailed information from MusicBrainz
+5. **Spotify Enrichment**: Enhances metadata with Spotify data when available
+
+### File Upload Flow
 1. **Audio Fingerprinting**: Uses Chromaprint to generate a unique acoustic fingerprint from the audio file
 2. **Database Matching**: Compares the fingerprint against AcoustID's database of millions of songs
 3. **Metadata Retrieval**: Fetches detailed information from MusicBrainz
@@ -77,6 +97,8 @@ ACOUSTID_API_KEY=your-api-key-here
 
 ### Web Interface
 
+#### Option A: Record from Microphone (Recommended - Like Shazam!)
+
 1. Start the server:
    ```bash
    python server.py
@@ -86,7 +108,36 @@ ACOUSTID_API_KEY=your-api-key-here
 
 3. Scroll to the "Identify Unknown Song" section
 
-4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG)
+4. Click "🎤 Record from Microphone"
+
+5. Allow microphone access when your browser prompts
+
+6. Play the song you want to identify near your device (or let it play from speakers/radio)
+
+7. Record for 10-15 seconds for best results
+
+8. Click "⏹️ Stop & Identify"
+
+9. View results with cover art and metadata
+
+**Tips for best results:**
+- Record for at least 10 seconds
+- Minimize background noise
+- Hold your device close to the audio source
+- Works great with music playing from speakers, radio, or other devices
+
+#### Option B: Upload an Audio File
+
+1. Start the server:
+   ```bash
+   python server.py
+   ```
+
+2. Open http://127.0.0.1:5000
+
+3. Scroll to the "Identify Unknown Song" section
+
+4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG, WEBM)
 
 5. Click "Identify Song"
 

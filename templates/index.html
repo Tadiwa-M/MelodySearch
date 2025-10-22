@@ -546,21 +546,46 @@
 
         <div class="upload-section" style="margin-top: 20px;">
             <h2>🎵 Identify Unknown Song</h2>
-            <p>Upload an audio file to identify the song and get complete metadata</p>
+            <p>Record from microphone or upload an audio file to identify the song</p>
 
-            <form class="upload-form" id="identifyForm" enctype="multipart/form-data">
-                <div class="file-upload-area" id="identifyUploadArea">
-                    <input type="file" id="identifyAudioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
-                    <div class="upload-placeholder" id="identifyPlaceholder">
-                        <div class="upload-icon">🔍</div>
-                        <p>Drop audio file here or click to browse</p>
-                        <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG (up to 16MB)</p>
-                    </div>
-                </div>
-                <button type="submit" class="upload-btn" id="identifyBtn" disabled style="background: #ff6b35;">
-                    🔍 Identify Song
+            <!-- Microphone Recording Section -->
+            <div style="margin-bottom: 20px;">
+                <button type="button" class="upload-btn" id="recordBtn" 
+                        style="background: #dc3545; margin-bottom: 10px;">
+                    🎤 Record from Microphone
                 </button>
-            </form>
+                <div id="recordingStatus" style="display: none; padding: 15px; background: #1a1a1a; 
+                     border-radius: 8px; margin-top: 10px; text-align: center;">
+                    <div style="color: #dc3545; font-size: 1.2em; margin-bottom: 10px;">
+                        <span id="recordingIndicator">🔴</span> Recording...
+                    </div>
+                    <div id="recordingTimer" style="color: #ffffff; font-size: 1.5em; font-weight: 600; margin-bottom: 10px;">
+                        00:00
+                    </div>
+                    <button type="button" class="upload-btn" id="stopRecordBtn" 
+                            style="background: #28a745; max-width: 200px; margin: 0 auto;">
+                        ⏹️ Stop & Identify
+                    </button>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div style="opacity: 0.7; padding-top: 15px; border-top: 1px solid #2a2a2a;">
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 15px;">Or upload a file:</p>
+                <form class="upload-form" id="identifyForm" enctype="multipart/form-data">
+                    <div class="file-upload-area" id="identifyUploadArea">
+                        <input type="file" id="identifyAudioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
+                        <div class="upload-placeholder" id="identifyPlaceholder">
+                            <div class="upload-icon">📁</div>
+                            <p>Drop audio file here or click to browse</p>
+                            <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG (up to 16MB)</p>
+                        </div>
+                    </div>
+                    <button type="submit" class="upload-btn" id="identifyBtn" disabled style="background: #ff6b35;">
+                        🔍 Identify Song
+                    </button>
+                </form>
+            </div>
         </div>
 
         <div class="loading" id="loading">
@@ -671,6 +696,25 @@
                 const identifyBtn = document.getElementById('identifyBtn');
                 const identifyForm = document.getElementById('identifyForm');
 
+                // Recording variables
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.recordingStartTime = null;
+                this.recordingTimerInterval = null;
+
+                // Recording button
+                const recordBtn = document.getElementById('recordBtn');
+                const stopRecordBtn = document.getElementById('stopRecordBtn');
+                const recordingStatus = document.getElementById('recordingStatus');
+
+                recordBtn.addEventListener('click', () => {
+                    this.startRecording();
+                });
+
+                stopRecordBtn.addEventListener('click', () => {
+                    this.stopRecording();
+                });
+
                 // Click to browse
                 identifyArea.addEventListener('click', () => {
                     identifyFileInput.click();
@@ -705,6 +749,123 @@
                     e.preventDefault();
                     this.identifySong();
                 });
+            }
+
+            async startRecording() {
+                try {
+                    // Request microphone access
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        } 
+                    });
+
+                    // Create MediaRecorder
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    this.audioChunks = [];
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                        }
+                    };
+
+                    this.mediaRecorder.onstop = () => {
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                        
+                        // Create audio blob
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        
+                        // Send to server for identification
+                        this.identifyRecordedAudio(audioBlob);
+                    };
+
+                    // Start recording
+                    this.mediaRecorder.start();
+                    this.recordingStartTime = Date.now();
+
+                    // Show recording status
+                    const recordBtn = document.getElementById('recordBtn');
+                    const recordingStatus = document.getElementById('recordingStatus');
+                    recordBtn.style.display = 'none';
+                    recordingStatus.style.display = 'block';
+
+                    // Start timer
+                    this.updateRecordingTimer();
+                    this.recordingTimerInterval = setInterval(() => {
+                        this.updateRecordingTimer();
+                    }, 1000);
+
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    this.showError('Could not access microphone. Please grant permission and try again.');
+                }
+            }
+
+            updateRecordingTimer() {
+                if (!this.recordingStartTime) return;
+                
+                const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                
+                const timerDisplay = document.getElementById('recordingTimer');
+                timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                    
+                    // Stop timer
+                    if (this.recordingTimerInterval) {
+                        clearInterval(this.recordingTimerInterval);
+                        this.recordingTimerInterval = null;
+                    }
+
+                    // Reset UI
+                    const recordBtn = document.getElementById('recordBtn');
+                    const recordingStatus = document.getElementById('recordingStatus');
+                    recordBtn.style.display = 'block';
+                    recordingStatus.style.display = 'none';
+                    
+                    this.recordingStartTime = null;
+                }
+            }
+
+            async identifyRecordedAudio(audioBlob) {
+                this.showLoading('Identifying song from recording...');
+
+                try {
+                    // Convert blob to file
+                    const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+
+                    // Create form data
+                    const formData = new FormData();
+                    formData.append('audio_file', audioFile);
+
+                    // Send to server
+                    const response = await fetch('/identify', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Identification failed');
+                    }
+
+                    this.hideLoading();
+                    this.displayIdentificationResult(data);
+
+                } catch (error) {
+                    this.hideLoading();
+                    this.showError(`Identification error: ${error.message}`);
+                }
             }
 
             handleIdentifyFileSelection(file) {

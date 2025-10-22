@@ -41,7 +41,7 @@ app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg', 'webm'}
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -1124,7 +1124,7 @@ def identify_song():
             return jsonify({"error": "No file selected"}), 400
 
         if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, OGG, or WEBM"}), 400
 
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
@@ -1194,7 +1194,7 @@ def upload_audio():
             return jsonify({"error": "No file selected"}), 400
 
         if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, OGG, or WEBM"}), 400
 
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
