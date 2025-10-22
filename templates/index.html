@@ -499,6 +499,321 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3a3a3a;
         }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #888888;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover {
+            color: #ffffff;
+        }
+
+        .nav-tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Library Styles */
+        .library-section {
+            background: #111111;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .library-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .library-stats {
+            color: #888888;
+            font-size: 0.9rem;
+        }
+
+        .library-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #0052a3;
+        }
+
+        .action-btn.secondary {
+            background: #2a2a2a;
+        }
+
+        .action-btn.secondary:hover {
+            background: #3a3a3a;
+        }
+
+        .action-btn.danger {
+            background: #dc3545;
+        }
+
+        .action-btn.danger:hover {
+            background: #c82333;
+        }
+
+        .library-song-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .library-song-info h4 {
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .library-song-info p {
+            color: #888888;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+
+        .library-song-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: none;
+            border-radius: 6px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: #3a3a3a;
+        }
+
+        .icon-btn.save {
+            background: #28a745;
+        }
+
+        .icon-btn.save:hover {
+            background: #218838;
+        }
+
+        .icon-btn.saved {
+            background: #28a745;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .collection-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .collection-card:hover {
+            border-color: #0066cc;
+            background: #151515;
+        }
+
+        .collection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .collection-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .collection-description {
+            color: #888888;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .collection-meta {
+            color: #666666;
+            font-size: 0.85rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888888;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #111111;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #cccccc;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .collection-songs-list {
+            margin-top: 16px;
+        }
     </style>
 </head>
 <body>
@@ -508,67 +823,168 @@
             <p>Melody Search: Discover New Music Everyday</p>
         </div>
 
-        <div class="search-section">
-            <h2>Search Spotify Catalog</h2>
-            <p>Find similar songs using metadata analysis</p>
-            <form class="search-form" id="searchForm">
-                <input
-                    type="text"
-                    class="search-input"
-                    id="songInput"
-                    placeholder="Enter song name or artist - song title"
-                    required
-                >
-                <button type="submit" class="search-btn" id="searchBtn">
-                    Search & Analyze
-                </button>
-            </form>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="search">Search</button>
+            <button class="nav-tab" data-tab="library">My Library</button>
+            <button class="nav-tab" data-tab="collections">Collections</button>
         </div>
 
-        <div class="upload-section">
-            <h2>Upload Your Own Track</h2>
-            <p>Get precise analysis by uploading your own audio file</p>
+        <!-- Search Tab Content -->
+        <div class="tab-content active" data-tab-content="search">
+            <div class="search-section">
+                <h2>Search Spotify Catalog</h2>
+                <p>Find similar songs using metadata analysis</p>
+                <form class="search-form" id="searchForm">
+                    <input
+                        type="text"
+                        class="search-input"
+                        id="songInput"
+                        placeholder="Enter song name or artist - song title"
+                        required
+                    >
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        Search & Analyze
+                    </button>
+                </form>
+            </div>
 
-            <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
-                <div class="file-upload-area" id="fileUploadArea">
-                    <input type="file" id="audioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
-                    <div class="upload-placeholder">
-                        <div class="upload-icon">📁</div>
-                        <p>Drop audio file here or click to browse</p>
-                        <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG</p>
+            <div class="upload-section">
+                <h2>Upload Your Own Track</h2>
+                <p>Get precise analysis by uploading your own audio file</p>
+
+                <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <input type="file" id="audioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
+                        <div class="upload-placeholder">
+                            <div class="upload-icon">📁</div>
+                            <p>Drop audio file here or click to browse</p>
+                            <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG</p>
+                        </div>
+                    </div>
+                    <button type="submit" class="upload-btn" id="uploadBtn" disabled>
+                        🎵 Analyze My Track
+                    </button>
+                </form>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing audio features...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="analysis-section" id="analysisSection">
+                <div class="song-info" id="songInfo">
+                    <!-- Song info will be populated here -->
+                </div>
+
+                <div class="analysis-methods" id="analysisMethods">
+                    <!-- Analysis method badges will appear here -->
+                </div>
+
+                <div class="recommendations" id="recommendations">
+                    <h2>Similar Songs</h2>
+                    <div id="recommendationsList">
+                        <!-- Recommendations will be populated here -->
                     </div>
                 </div>
-                <button type="submit" class="upload-btn" id="uploadBtn" disabled>
-                    🎵 Analyze My Track
-                </button>
-            </form>
-        </div>
 
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing audio features...</p>
-        </div>
-
-        <div class="error" id="error"></div>
-
-        <div class="analysis-section" id="analysisSection">
-            <div class="song-info" id="songInfo">
-                <!-- Song info will be populated here -->
-            </div>
-
-            <div class="analysis-methods" id="analysisMethods">
-                <!-- Analysis method badges will appear here -->
-            </div>
-
-            <div class="recommendations" id="recommendations">
-                <h2>Similar Songs</h2>
-                <div id="recommendationsList">
-                    <!-- Recommendations will be populated here -->
+                <div class="feature-analysis" id="featureAnalysis">
+                    <!-- Feature analysis will be populated here -->
                 </div>
             </div>
+        </div>
 
-            <div class="feature-analysis" id="featureAnalysis">
-                <!-- Feature analysis will be populated here -->
+        <!-- Library Tab Content -->
+        <div class="tab-content" data-tab-content="library">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>My Library</h2>
+                        <p class="library-stats" id="libraryStats">Loading...</p>
+                    </div>
+                </div>
+                <div id="librarySongsList">
+                    <!-- Library songs will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Collections Tab Content -->
+        <div class="tab-content" data-tab-content="collections">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>Collections</h2>
+                        <p class="library-stats" id="collectionsStats">Loading...</p>
+                    </div>
+                    <button class="action-btn" id="createCollectionBtn">
+                        ➕ New Collection
+                    </button>
+                </div>
+                <div id="collectionsList">
+                    <!-- Collections will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Collection Modal -->
+        <div class="modal" id="createCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create Collection</h3>
+                    <button class="modal-close" onclick="closeModal('createCollectionModal')">×</button>
+                </div>
+                <form id="createCollectionForm">
+                    <div class="form-group">
+                        <label for="collectionName">Collection Name *</label>
+                        <input type="text" id="collectionName" required placeholder="e.g., Chill Vibes, Workout Mix">
+                    </div>
+                    <div class="form-group">
+                        <label for="collectionDescription">Description</label>
+                        <textarea id="collectionDescription" placeholder="Optional description..."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="action-btn secondary" onclick="closeModal('createCollectionModal')">Cancel</button>
+                        <button type="submit" class="action-btn">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- View Collection Modal -->
+        <div class="modal" id="viewCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="viewCollectionName">Collection</h3>
+                    <button class="modal-close" onclick="closeModal('viewCollectionModal')">×</button>
+                </div>
+                <p id="viewCollectionDescription" style="color: #888888; margin-bottom: 20px;"></p>
+                <div class="collection-songs-list" id="viewCollectionSongs">
+                    <!-- Collection songs will be populated here -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn danger" id="deleteCollectionBtn">Delete Collection</button>
+                    <button type="button" class="action-btn secondary" onclick="closeModal('viewCollectionModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add to Collection Modal -->
+        <div class="modal" id="addToCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add to Collection</h3>
+                    <button class="modal-close" onclick="closeModal('addToCollectionModal')">×</button>
+                </div>
+                <div id="addToCollectionList">
+                    <!-- Collections list will be populated here -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn secondary" onclick="closeModal('addToCollectionModal')">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1157,8 +1573,488 @@
             }
         }
 
+        // Library Management
+        class LibraryManager {
+            constructor() {
+                this.currentSong = null;
+                this.currentCollectionId = null;
+                this.savedSongs = new Set();
+                this.setupLibraryEventListeners();
+                this.loadLibrary();
+                this.loadCollections();
+            }
+
+            setupLibraryEventListeners() {
+                // Tab switching
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabName = e.target.dataset.tab;
+                        this.switchTab(tabName);
+                    });
+                });
+
+                // Create collection button
+                document.getElementById('createCollectionBtn')?.addEventListener('click', () => {
+                    openModal('createCollectionModal');
+                });
+
+                // Create collection form
+                document.getElementById('createCollectionForm')?.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.createCollection();
+                });
+            }
+
+            switchTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
+
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.toggle('active', content.dataset.tabContent === tabName);
+                });
+
+                // Load data when switching to library or collections
+                if (tabName === 'library') {
+                    this.loadLibrary();
+                } else if (tabName === 'collections') {
+                    this.loadCollections();
+                }
+            }
+
+            async loadLibrary() {
+                try {
+                    const response = await fetch('/library/songs');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.updateLibraryStats(data.count);
+                        this.displayLibrarySongs(data.songs);
+                        
+                        // Update saved songs set
+                        this.savedSongs = new Set(data.songs.map(s => s.spotify_id || s.title));
+                    }
+                } catch (error) {
+                    console.error('Failed to load library:', error);
+                }
+            }
+
+            updateLibraryStats(count) {
+                const statsEl = document.getElementById('libraryStats');
+                if (statsEl) {
+                    statsEl.textContent = `${count} song${count !== 1 ? 's' : ''} in library`;
+                }
+            }
+
+            displayLibrarySongs(songs) {
+                const container = document.getElementById('librarySongsList');
+                
+                if (!songs || songs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎵</div>
+                            <p>Your library is empty</p>
+                            <p style="font-size: 0.9rem; margin-top: 8px;">
+                                Save songs from search results to start building your library
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = songs.map(song => `
+                    <div class="library-song-card">
+                        <div class="library-song-info">
+                            <h4>${song.title}</h4>
+                            <p>${song.artist}</p>
+                            <p style="font-size: 0.8rem; color: #666;">
+                                Added ${new Date(song.added_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <div class="library-song-actions">
+                            <button class="icon-btn" onclick="libraryManager.addSongToCollection('${song.id}')">
+                                ➕ Add to Collection
+                            </button>
+                            <button class="icon-btn" onclick="libraryManager.removeSongFromLibrary('${song.id}')">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
+            }
+
+            async addSongToLibrary(songData) {
+                try {
+                    const response = await fetch('/library/songs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(songData)
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.savedSongs.add(songData.spotify_id || songData.title);
+                        this.showToast('✓ Song added to library');
+                        this.loadLibrary();
+                        return true;
+                    } else {
+                        this.showToast(data.message);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Failed to add song:', error);
+                    this.showToast('Failed to add song to library');
+                    return false;
+                }
+            }
+
+            async removeSongFromLibrary(songId) {
+                if (!confirm('Remove this song from your library?')) return;
+
+                try {
+                    const response = await fetch(`/library/songs/${songId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showToast('✓ Song removed from library');
+                        this.loadLibrary();
+                    }
+                } catch (error) {
+                    console.error('Failed to remove song:', error);
+                }
+            }
+
+            async loadCollections() {
+                try {
+                    const response = await fetch('/library/collections');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.updateCollectionsStats(data.count);
+                        this.displayCollections(data.collections);
+                    }
+                } catch (error) {
+                    console.error('Failed to load collections:', error);
+                }
+            }
+
+            updateCollectionsStats(count) {
+                const statsEl = document.getElementById('collectionsStats');
+                if (statsEl) {
+                    statsEl.textContent = `${count} collection${count !== 1 ? 's' : ''}`;
+                }
+            }
+
+            displayCollections(collections) {
+                const container = document.getElementById('collectionsList');
+                
+                if (!collections || collections.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <p>No collections yet</p>
+                            <p style="font-size: 0.9rem; margin-top: 8px;">
+                                Create a collection to organize your favorite songs
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = collections.map(collection => `
+                    <div class="collection-card" onclick="libraryManager.viewCollection('${collection.id}')">
+                        <div class="collection-header">
+                            <div>
+                                <div class="collection-name">${collection.name}</div>
+                                ${collection.description ? `<div class="collection-description">${collection.description}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="collection-meta">
+                            ${collection.song_count} song${collection.song_count !== 1 ? 's' : ''} • 
+                            Created ${new Date(collection.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
+            }
+
+            async createCollection() {
+                const name = document.getElementById('collectionName').value;
+                const description = document.getElementById('collectionDescription').value;
+
+                try {
+                    const response = await fetch('/library/collections', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('createCollectionModal');
+                        this.showToast('✓ Collection created');
+                        this.loadCollections();
+                        document.getElementById('createCollectionForm').reset();
+                    }
+                } catch (error) {
+                    console.error('Failed to create collection:', error);
+                    this.showToast('Failed to create collection');
+                }
+            }
+
+            async viewCollection(collectionId) {
+                this.currentCollectionId = collectionId;
+
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const collection = data.collection;
+                        
+                        document.getElementById('viewCollectionName').textContent = collection.name;
+                        document.getElementById('viewCollectionDescription').textContent = 
+                            collection.description || 'No description';
+
+                        const songsHtml = collection.songs.length > 0 ? 
+                            collection.songs.map(song => `
+                                <div class="library-song-card">
+                                    <div class="library-song-info">
+                                        <h4>${song.title}</h4>
+                                        <p>${song.artist}</p>
+                                    </div>
+                                    <button class="icon-btn" 
+                                            onclick="libraryManager.removeSongFromCollection('${collectionId}', '${song.id}')">
+                                        Remove
+                                    </button>
+                                </div>
+                            `).join('') :
+                            '<p style="color: #888888;">No songs in this collection yet</p>';
+
+                        document.getElementById('viewCollectionSongs').innerHTML = songsHtml;
+
+                        // Setup delete button
+                        document.getElementById('deleteCollectionBtn').onclick = () => {
+                            this.deleteCollection(collectionId);
+                        };
+
+                        openModal('viewCollectionModal');
+                    }
+                } catch (error) {
+                    console.error('Failed to load collection:', error);
+                }
+            }
+
+            async deleteCollection(collectionId) {
+                if (!confirm('Delete this collection? This cannot be undone.')) return;
+
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('viewCollectionModal');
+                        this.showToast('✓ Collection deleted');
+                        this.loadCollections();
+                    }
+                } catch (error) {
+                    console.error('Failed to delete collection:', error);
+                }
+            }
+
+            async addSongToCollection(songId) {
+                this.currentSong = songId;
+
+                try {
+                    const response = await fetch('/library/collections');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const collections = data.collections;
+                        
+                        if (collections.length === 0) {
+                            this.showToast('Create a collection first');
+                            return;
+                        }
+
+                        const html = collections.map(collection => `
+                            <div class="library-song-card" style="cursor: pointer;" 
+                                 onclick="libraryManager.addToCollectionConfirm('${collection.id}')">
+                                <div class="library-song-info">
+                                    <h4>${collection.name}</h4>
+                                    <p>${collection.song_count} songs</p>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        document.getElementById('addToCollectionList').innerHTML = html;
+                        openModal('addToCollectionModal');
+                    }
+                } catch (error) {
+                    console.error('Failed to load collections:', error);
+                }
+            }
+
+            async addToCollectionConfirm(collectionId) {
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}/songs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ song_id: this.currentSong })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('addToCollectionModal');
+                        this.showToast('✓ Song added to collection');
+                    } else {
+                        this.showToast(data.message);
+                    }
+                } catch (error) {
+                    console.error('Failed to add song to collection:', error);
+                    this.showToast('Failed to add song to collection');
+                }
+            }
+
+            async removeSongFromCollection(collectionId, songId) {
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}/songs/${songId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showToast('✓ Song removed from collection');
+                        this.viewCollection(collectionId);
+                    }
+                } catch (error) {
+                    console.error('Failed to remove song:', error);
+                }
+            }
+
+            isSongSaved(song) {
+                const identifier = song.spotify_id || song.title;
+                return this.savedSongs.has(identifier);
+            }
+
+            showToast(message) {
+                // Simple toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: #28a745;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                `;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        // Modal helpers
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Global library manager instance
+        let libraryManager;
+
         document.addEventListener('DOMContentLoaded', () => {
-            new MelodySearchApp();
+            const app = new MelodySearchApp();
+            libraryManager = new LibraryManager();
+
+            // Add save buttons to recommendations
+            const originalDisplayRecommendations = app.displayRecommendations.bind(app);
+            app.displayRecommendations = function(recommendations) {
+                originalDisplayRecommendations(recommendations);
+
+                // Add save buttons to each recommendation
+                setTimeout(() => {
+                    const recCards = document.querySelectorAll('.recommendation-card');
+                    recCards.forEach((card, index) => {
+                        const rec = recommendations[index];
+                        if (!rec) return;
+
+                        const header = card.querySelector('.recommendation-header');
+                        if (!header) return;
+
+                        const isSaved = libraryManager.isSongSaved(rec);
+                        const saveBtn = document.createElement('button');
+                        saveBtn.className = isSaved ? 'icon-btn saved' : 'icon-btn save';
+                        saveBtn.textContent = isSaved ? '✓ Saved' : '💾 Save';
+                        saveBtn.disabled = isSaved;
+                        
+                        if (!isSaved) {
+                            saveBtn.onclick = async () => {
+                                const songData = {
+                                    title: rec.title || rec.name,
+                                    artist: rec.artist,
+                                    audio_features: rec.audio_features || {},
+                                    spotify_metadata: {
+                                        spotify_id: rec.spotify_id || rec.id,
+                                        popularity: rec.popularity,
+                                        preview_url: rec.preview_url
+                                    },
+                                    spotify_id: rec.spotify_id || rec.id,
+                                    source: 'search_result'
+                                };
+
+                                const success = await libraryManager.addSongToLibrary(songData);
+                                if (success) {
+                                    saveBtn.textContent = '✓ Saved';
+                                    saveBtn.className = 'icon-btn saved';
+                                    saveBtn.disabled = true;
+                                }
+                            };
+                        }
+
+                        header.appendChild(saveBtn);
+                    });
+                }, 100);
+            };
+
+            // Add CSS animations
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
         });
     </script>
 </body>
