@@ -51,6 +51,12 @@
    - Drag-and-drop file upload support
    - Real-time search results
 
+8. **Personal Library & Collections**
+   - Save favorite songs and search results to your personal library
+   - Create custom collections/playlists from saved songs
+   - Organize music by mood, genre, or any criteria
+   - Persistent storage of your music preferences
+
 ## Project Structure 📁
 
 ```
@@ -63,9 +69,11 @@ MelodySearch/
 ├── song_db.py                        # Song database management
 ├── spotify_integration.py            # Spotify API integration
 ├── mp3_to_wav.py                     # Audio format conversion utilities
+├── library_manager.py                # User library and collections management
 ├── templates/
 │   └── index.html                    # Web UI
 └── Data/                             # Song database storage
+    └── library/                      # User library storage (personal)
 ```
 
 ## Installation & Setup 🚀
@@ -120,6 +128,7 @@ MelodySearch/
 3. Enter a song name (e.g., "Blinding Lights")
 4. Click "Search"
 5. View similar songs with similarity scores and explanations
+6. Click "Save" on any recommendation to add it to your library
 
 ### 2. Web Interface - Upload Audio File
 
@@ -139,7 +148,18 @@ Follow the prompts:
 - Enter song title
 - View top 10 recommendations with similarity scores
 
-### 4. API Endpoints
+### 4. Personal Library Management
+
+1. **Save Songs**: Click the "Save" button on any search result or recommendation
+2. **View Library**: Switch to the "My Library" tab to see all saved songs
+3. **Create Collections**: 
+   - Go to the "Collections" tab
+   - Click "New Collection"
+   - Give it a name and optional description
+4. **Organize Songs**: Add saved songs to collections from your library
+5. **Manage Collections**: View, edit, or delete collections as needed
+
+### 5. API Endpoints
 
 #### Search for a song and get recommendations
 ```bash
@@ -157,6 +177,45 @@ POST /upload
 Content-Type: multipart/form-data
 
 audio_file: <your audio file>
+```
+
+#### Library Management
+```bash
+# Add song to library
+POST /library/songs
+Content-Type: application/json
+{ "title": "Song Name", "artist": "Artist Name", ... }
+
+# Get all library songs
+GET /library/songs
+
+# Remove song from library
+DELETE /library/songs/{song_id}
+
+# Create collection
+POST /library/collections
+Content-Type: application/json
+{ "name": "My Playlist", "description": "Optional description" }
+
+# Get all collections
+GET /library/collections
+
+# Get collection with songs
+GET /library/collections/{collection_id}
+
+# Add song to collection
+POST /library/collections/{collection_id}/songs
+Content-Type: application/json
+{ "song_id": "song_id_from_library" }
+
+# Remove song from collection
+DELETE /library/collections/{collection_id}/songs/{song_id}
+
+# Delete collection
+DELETE /library/collections/{collection_id}
+
+# Get library statistics
+GET /library/stats
 ```
 
 ## Technical Details 🔧
@@ -289,9 +348,12 @@ See `requirements.txt` for exact versions.
 ## Database 💾
 
 Songs are stored in JSON format in the `Data/` directory:
-- Each analyzed song is saved for future comparisons
-- Includes all extracted features and metadata
+- **Song Database** (`Data/song_db.json`): Each analyzed song is saved for future comparisons
+- **Personal Library** (`Data/library/library_songs.json`): Your saved/liked songs
+- **Collections** (`Data/library/collections.json`): Your custom playlists
+- All data includes extracted features and metadata
 - Enables building a local music library over time
+- Library data is excluded from git (personal data)
 
 ## Performance Considerations ⚡
 
@@ -309,16 +371,27 @@ Songs are stored in JSON format in the `Data/` directory:
 4. **Genre Coverage**: Genre mappings are comprehensive but not exhaustive
 5. **File Size**: Upload limited to 16MB for performance
 
+## Recent Features ✨
+
+**Library & Collections System**
+- Save favorite songs and search results
+- Create custom collections/playlists
+- Organize music by any criteria
+- Persistent personal library storage
+- Easy song and collection management
+
 ## Future Enhancements 🚀
 
 Potential improvements and features:
 - Multi-track playlist similarity analysis
-- User preference learning
+- User preference learning and personalized recommendations
+- Smart playlists based on mood/activity
 - More audio file formats support
 - Offline mode with pre-downloaded features
 - Advanced filtering (by year, genre, mood)
 - Collaborative filtering recommendations
 - Integration with more music APIs (Last.fm, Apple Music)
+- Export/import library and collections
 
 ## Contributing 🤝
 

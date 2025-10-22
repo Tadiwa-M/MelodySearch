@@ -44,6 +44,18 @@ Extract detailed musical characteristics:
 - Track your music collection
 - Compare new songs against your library
 
+### 8. 💾 Personal Library Management
+- Save favorite songs from search results
+- Build your personal music library
+- Quick access to your liked songs
+- Track when songs were added
+
+### 9. 📚 Create Custom Collections
+- Organize songs into playlists/collections
+- Name and describe your collections
+- Add/remove songs from collections
+- Manage multiple collections (Workout, Chill, Party, etc.)
+
 ### 6. 🧮 Mathematical Similarity Analysis
 - Uses advanced algorithms for matching:
   - Cosine similarity for feature vectors
@@ -87,26 +99,34 @@ curl -X POST http://127.0.0.1:5000/upload \
 1. **Music Discovery** 
    - "I like this song, what else is similar?"
    - Find new artists with similar styles
+   - Save discoveries to your library for later
 
 2. **Playlist Creation**
    - Build cohesive playlists with similar vibes
+   - Create collections for different moods
    - Mix genres intelligently
+   - Organize with custom collections
 
 3. **Music Production**
    - Upload your demo and find commercial references
    - Understand what your track sounds like
+   - Save reference tracks to collections
 
 4. **DJ/Radio Programming**
    - Create smooth transitions between songs
-   - Build themed sets
+   - Build themed sets using collections
+   - Save successful combinations for future gigs
 
 5. **Music Research**
    - Analyze musical trends over time
    - Study genre evolution
+   - Build collections of examples by era/style
 
 6. **Personal Music Library**
    - Organize your collection by similarity
    - Discover forgotten tracks in your library
+   - Create collections for workouts, studying, parties, etc.
+   - Keep track of songs you want to explore later
 
 ## Task Limitations
 
