@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
 import re
+from song_identifier import SongIdentifier
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
@@ -1537,6 +1538,118 @@ def calculate_vector_similarity(vec1, vec2):
         return 0.0
 
 
+
+
+@app.route('/identify', methods=['POST'])
+def identify_song():
+    """
+    Identify a song from user-provided audio file.
+    Returns metadata including title, artist, album, and cover art.
+    """
+    try:
+        if 'audio_file' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+
+        file = request.files['audio_file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+
+        try:
+            # Initialize song identifier
+            identifier = SongIdentifier()
+            
+            logging.info(f"Identifying song from: {filename}")
+            
+            # Identify the song
+            metadata = identifier.identify_song(temp_path, method="audd")
+            
+            if not metadata or not metadata.get('identified'):
+                return jsonify({
+                    "error": "Could not identify song",
+                    "message": "The song could not be identified. Please try with a clearer audio sample or a different part of the song.",
+                    "suggestions": [
+                        "Ensure the audio quality is good",
+                        "Try uploading a 15-30 second clip from the chorus or most recognizable part",
+                        "Reduce background noise if possible"
+                    ]
+                }), 404
+            
+            # Enrich metadata with Spotify data if possible
+            sp = get_spotify_client()
+            enriched_metadata = identifier.enrich_metadata_from_spotify(metadata, sp)
+            
+            # Save to database
+            song_data = {
+                "title": enriched_metadata.get('title'),
+                "artist": enriched_metadata.get('artist'),
+                "audio_features": {},  # Can be populated later if needed
+                "spotify_metadata": {
+                    "album": enriched_metadata.get('album'),
+                    "album_art": enriched_metadata.get('album_art'),
+                    "cover_art": enriched_metadata.get('cover_art'),
+                    "release_date": enriched_metadata.get('release_date'),
+                    "spotify_id": enriched_metadata.get('spotify_id'),
+                    "spotify_url": enriched_metadata.get('spotify_url'),
+                    "preview_url": enriched_metadata.get('preview_url'),
+                    "popularity": enriched_metadata.get('popularity'),
+                    "duration_ms": enriched_metadata.get('duration_ms'),
+                    "explicit": enriched_metadata.get('explicit'),
+                    "genres": enriched_metadata.get('artist_genres', []),
+                    "label": enriched_metadata.get('label'),
+                }
+            }
+            save_song_to_db(song_data)
+            
+            return jsonify({
+                "message": "Song identified successfully",
+                "identified": True,
+                "song": {
+                    "title": enriched_metadata.get('title'),
+                    "artist": enriched_metadata.get('artist'),
+                    "album": enriched_metadata.get('album'),
+                    "album_art": enriched_metadata.get('album_art'),
+                    "cover_art": enriched_metadata.get('cover_art'),
+                    "release_date": enriched_metadata.get('release_date'),
+                    "label": enriched_metadata.get('label'),
+                    "spotify_id": enriched_metadata.get('spotify_id'),
+                    "spotify_url": enriched_metadata.get('spotify_url'),
+                    "preview_url": enriched_metadata.get('preview_url'),
+                    "popularity": enriched_metadata.get('popularity'),
+                    "duration_ms": enriched_metadata.get('duration_ms'),
+                    "explicit": enriched_metadata.get('explicit'),
+                    "genres": enriched_metadata.get('artist_genres', []),
+                    "album_details": {
+                        "type": enriched_metadata.get('album_type'),
+                        "total_tracks": enriched_metadata.get('album_total_tracks'),
+                        "release_date": enriched_metadata.get('album_release_date'),
+                        "label": enriched_metadata.get('album_label'),
+                    },
+                    "identification_metadata": {
+                        "source": enriched_metadata.get('identification_source'),
+                        "confidence_score": enriched_metadata.get('score'),
+                        "timecode": enriched_metadata.get('timecode'),
+                        "spotify_enriched": enriched_metadata.get('spotify_enriched', False)
+                    }
+                }
+            }), 200
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    except Exception as e:
+        logging.error(f"Song identification failed: {e}")
+        return jsonify({"error": f"Identification failed: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
