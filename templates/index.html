@@ -544,6 +544,25 @@
             </form>
         </div>
 
+        <div class="upload-section" style="margin-top: 20px;">
+            <h2>🎵 Identify Unknown Song</h2>
+            <p>Upload an audio file to identify the song and get complete metadata</p>
+
+            <form class="upload-form" id="identifyForm" enctype="multipart/form-data">
+                <div class="file-upload-area" id="identifyUploadArea">
+                    <input type="file" id="identifyAudioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
+                    <div class="upload-placeholder" id="identifyPlaceholder">
+                        <div class="upload-icon">🔍</div>
+                        <p>Drop audio file here or click to browse</p>
+                        <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG (up to 16MB)</p>
+                    </div>
+                </div>
+                <button type="submit" class="upload-btn" id="identifyBtn" disabled style="background: #ff6b35;">
+                    🔍 Identify Song
+                </button>
+            </form>
+        </div>
+
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p>Analyzing audio features...</p>
@@ -580,6 +599,7 @@
                 this.initializeEssentia();
                 this.setupEventListeners();
                 this.setupUpload();
+                this.setupIdentify();
             }
 
             async initializeEssentia() {
@@ -643,6 +663,206 @@
                     e.preventDefault();
                     this.uploadAudio();
                 });
+            }
+
+            setupIdentify() {
+                const identifyArea = document.getElementById('identifyUploadArea');
+                const identifyFileInput = document.getElementById('identifyAudioFile');
+                const identifyBtn = document.getElementById('identifyBtn');
+                const identifyForm = document.getElementById('identifyForm');
+
+                // Click to browse
+                identifyArea.addEventListener('click', () => {
+                    identifyFileInput.click();
+                });
+
+                // File selection
+                identifyFileInput.addEventListener('change', (e) => {
+                    this.handleIdentifyFileSelection(e.target.files[0]);
+                });
+
+                // Drag and drop
+                identifyArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    identifyArea.classList.add('dragover');
+                });
+
+                identifyArea.addEventListener('dragleave', () => {
+                    identifyArea.classList.remove('dragover');
+                });
+
+                identifyArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    identifyArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleIdentifyFileSelection(files[0]);
+                    }
+                });
+
+                // Form submission
+                identifyForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.identifySong();
+                });
+            }
+
+            handleIdentifyFileSelection(file) {
+                const identifyArea = document.getElementById('identifyUploadArea');
+                const identifyBtn = document.getElementById('identifyBtn');
+                const placeholder = document.getElementById('identifyPlaceholder');
+                const fileInput = document.getElementById('identifyAudioFile');
+
+                if (!file) {
+                    return;
+                }
+
+                // Check file type
+                const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg', 'audio/x-m4a'];
+                const allowedExtensions = /\.(mp3|wav|flac|m4a|ogg)$/i;
+
+                if (!allowedTypes.includes(file.type) && !file.name.match(allowedExtensions)) {
+                    this.showError('Please select a valid audio file (MP3, WAV, FLAC, M4A, or OGG)');
+                    return;
+                }
+
+                // Check file size (16MB max)
+                if (file.size > 16 * 1024 * 1024) {
+                    this.showError('File size must be less than 16MB');
+                    return;
+                }
+
+                // Set the file to the input
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                // Update UI
+                identifyArea.classList.add('file-selected');
+                placeholder.innerHTML = `
+                    <div class="upload-icon">🔍</div>
+                    <p><strong>${file.name}</strong></p>
+                    <p class="upload-formats">Ready to identify (${(file.size / 1024 / 1024).toFixed(1)} MB)</p>
+                `;
+
+                identifyBtn.disabled = false;
+                const displayName = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+                identifyBtn.textContent = `🔍 Identify ${displayName}`;
+            }
+
+            async identifySong() {
+                const fileInput = document.getElementById('identifyAudioFile');
+                const identifyBtn = document.getElementById('identifyBtn');
+
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    this.showError('Please select an audio file first');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('audio_file', fileInput.files[0]);
+
+                this.showLoading('Identifying song...');
+                identifyBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/identify', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Identification failed');
+                    }
+
+                    this.hideLoading();
+                    this.displayIdentificationResult(data);
+
+                } catch (error) {
+                    this.hideLoading();
+                    this.showError(`Identification error: ${error.message}`);
+                } finally {
+                    identifyBtn.disabled = false;
+                }
+            }
+
+            displayIdentificationResult(data) {
+                const analysisSection = document.getElementById('analysisSection');
+                const songInfo = document.getElementById('songInfo');
+                const analysisMethods = document.getElementById('analysisMethods');
+                const recommendations = document.getElementById('recommendations');
+
+                // Hide recommendations section for identification
+                recommendations.style.display = 'none';
+
+                const song = data.song;
+                const score = song.identification_score || 0;
+                const scoreColor = score > 0.8 ? '#28a745' : score > 0.5 ? '#ffc107' : '#ff6b6b';
+
+                // Display song information with cover art
+                songInfo.innerHTML = `
+                    ${song.cover_art_url ? `
+                        <img src="${song.cover_art_url}" 
+                             alt="${song.title}" 
+                             style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;">
+                    ` : ''}
+                    <div class="song-details">
+                        <h3>${song.title}</h3>
+                        <p class="artist">${song.artist}</p>
+                        <p>Album: ${song.album || 'Unknown'}</p>
+                        ${song.release_date ? `<p>Released: ${song.release_date}</p>` : ''}
+                        <p style="color: ${scoreColor}; font-weight: 600; margin-top: 8px;">
+                            Confidence: ${(score * 100).toFixed(0)}%
+                        </p>
+                        ${song.spotify_url ? `
+                            <a href="${song.spotify_url}" target="_blank" 
+                               style="display: inline-block; margin-top: 12px; padding: 8px 16px; 
+                                      background: #1ed760; color: #000; border-radius: 20px; 
+                                      text-decoration: none; font-weight: 600;">
+                                🎵 Listen on Spotify
+                            </a>
+                        ` : ''}
+                        ${song.musicbrainz_url ? `
+                            <a href="${song.musicbrainz_url}" target="_blank" 
+                               style="display: inline-block; margin-top: 12px; margin-left: 8px; 
+                                      padding: 8px 16px; background: #333; color: #fff; 
+                                      border-radius: 20px; text-decoration: none; font-weight: 600;">
+                                📖 View on MusicBrainz
+                            </a>
+                        ` : ''}
+                    </div>
+                `;
+
+                // Display identification method
+                analysisMethods.innerHTML = `
+                    <span class="method-badge" style="background: #ff6b35; color: #fff;">
+                        🔍 ${data.identification_source || 'AcoustID'}
+                    </span>
+                    ${song.isrc ? `
+                        <span class="method-badge" style="background: #6c757d; color: #fff;">
+                            ISRC: ${song.isrc}
+                        </span>
+                    ` : ''}
+                    ${song.popularity ? `
+                        <span class="method-badge" style="background: #1ed760; color: #000;">
+                            Popularity: ${song.popularity}
+                        </span>
+                    ` : ''}
+                `;
+
+                // Display tags/genres if available
+                if (song.tags && song.tags.length > 0) {
+                    analysisMethods.innerHTML += `
+                        <div style="margin-top: 12px; color: #888;">
+                            Tags: ${song.tags.slice(0, 5).join(', ')}
+                        </div>
+                    `;
+                }
+
+                analysisSection.style.display = 'block';
+                analysisSection.scrollIntoView({ behavior: 'smooth' });
             }
 
            handleFileSelection(file) {
@@ -1125,8 +1345,20 @@
                 return `${keyName} ${modeName}`.trim();
             }
 
-            showLoading(show) {
-                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            showLoading(show, message = 'Analyzing audio features...') {
+                const loadingDiv = document.getElementById('loading');
+                if (typeof show === 'string') {
+                    message = show;
+                    show = true;
+                }
+                if (show) {
+                    loadingDiv.querySelector('p').textContent = message;
+                }
+                loadingDiv.style.display = show ? 'block' : 'none';
+            }
+
+            hideLoading() {
+                this.showLoading(false);
             }
 
             showError(message) {
