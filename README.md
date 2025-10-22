@@ -6,29 +6,37 @@
 
 ### Core Capabilities
 
-1. **Song Similarity Search**
+1. **🔍 Song Identification** (NEW!)
+   - Identify unknown songs from audio files using acoustic fingerprinting
+   - Get complete metadata: title, artist, album, release date
+   - View high-quality cover art
+   - Direct links to Spotify and MusicBrainz
+   - Confidence scores for identification accuracy
+   - Powered by AcoustID and MusicBrainz databases
+
+2. **Song Similarity Search**
    - Find songs similar to any track on Spotify
    - Discover music across genres using mathematical similarity algorithms
    - Get recommendations based on audio features and metadata
 
-2. **Multiple Analysis Methods**
+3. **Multiple Analysis Methods**
    - **Metadata-Based Analysis**: Uses genre, artist popularity, release year, tempo, and other metadata
    - **Audio Feature Analysis**: Extracts tempo, energy, valence, danceability, and spectral features
    - **Real Audio File Upload**: Analyze your own audio files (MP3, WAV, FLAC, M4A, OGG)
 
-3. **Spotify Integration**
+4. **Spotify Integration**
    - Search for any song in Spotify's catalog
    - Extract comprehensive song metadata
    - Access artist genres and popularity data
    - Get album information and release dates
 
-4. **Audio File Upload & Analysis**
+5. **Audio File Upload & Analysis**
    - Upload your own audio files for analysis
    - Extract real audio features using librosa
    - Find similar tracks based on actual audio characteristics
    - Compare uploaded audio with Spotify catalog
 
-5. **Advanced Feature Extraction**
+6. **Advanced Feature Extraction**
    - **Tempo & Rhythm**: BPM detection, beat stability, rhythm patterns
    - **Tonal Features**: Key detection, mode, chroma analysis
    - **Energy & Dynamics**: RMS energy, spectral characteristics
@@ -40,12 +48,12 @@
    - **Liveness**: Live performance vs studio recording detection
    - **Loudness**: Dynamic range analysis
 
-6. **Cross-Genre Discovery**
+7. **Cross-Genre Discovery**
    - Mathematical similarity matching that works across different genres
    - Genre-aware recommendations with style mixing
    - Era-based matching (classic, vintage, modern, current)
 
-7. **Web Interface**
+8. **Web Interface**
    - Clean, modern UI for song search
    - Visual display of song features and similarity scores
    - Drag-and-drop file upload support
@@ -57,6 +65,7 @@
 MelodySearch/
 ├── server.py                          # Flask web server with REST API
 ├── main.py                           # Command-line interface
+├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── feature_extraction.py             # Audio feature extraction using librosa
 ├── matcher.py                        # Similarity matching algorithms
 ├── metadata_similarity_engine.py     # Metadata-based similarity engine
@@ -73,6 +82,8 @@ MelodySearch/
 ### Prerequisites
 - Python 3.8+
 - Spotify API credentials (Client ID and Client Secret)
+- AcoustID API key (for song identification - free at https://acoustid.org)
+- Chromaprint tool (`fpcalc`) - for audio fingerprinting
 
 ### Installation Steps
 
@@ -82,23 +93,40 @@ MelodySearch/
    cd MelodySearch
    ```
 
-2. **Install dependencies**
+2. **Install system dependencies (Ubuntu/Debian)**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install libchromaprint-tools
+   ```
+   
+   For macOS:
+   ```bash
+   brew install chromaprint
+   ```
+
+3. **Install Python dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up Spotify API credentials**
+4. **Set up API credentials**
    
-   You can either:
-   - Set environment variables:
-     ```bash
-     export SPOTIFY_CLIENT_ID='your_client_id'
-     export SPOTIFY_CLIENT_SECRET='your_client_secret'
-     ```
+   Create a `.env` file or set environment variables:
    
-   - Or modify the credentials directly in `server.py` (lines 33-34)
+   ```bash
+   # Spotify API (required)
+   export SPOTIFY_CLIENT_ID='your_client_id'
+   export SPOTIFY_CLIENT_SECRET='your_client_secret'
+   
+   # AcoustID API (required for song identification)
+   # Get your free API key at: https://acoustid.org/new-application
+   export ACOUSTID_API_KEY='your_acoustid_api_key'
+   
+   # Flask secret key (required for security)
+   export SECRET_KEY='your-random-secret-key'
+   ```
 
-4. **Run the application**
+5. **Run the application**
    
    **Web Interface:**
    ```bash
@@ -113,7 +141,16 @@ MelodySearch/
 
 ## Usage Examples 💡
 
-### 1. Web Interface - Search by Song Name
+### 1. Web Interface - Identify Unknown Song (NEW!)
+
+1. Start the server: `python server.py`
+2. Open http://127.0.0.1:5000
+3. Scroll to "Identify Unknown Song" section
+4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG)
+5. Click "Identify Song"
+6. View complete metadata with cover art, artist, album, and links
+
+### 2. Web Interface - Search by Song Name
 
 1. Start the server: `python server.py`
 2. Open http://127.0.0.1:5000
@@ -121,14 +158,14 @@ MelodySearch/
 4. Click "Search"
 5. View similar songs with similarity scores and explanations
 
-### 2. Web Interface - Upload Audio File
+### 3. Web Interface - Upload Audio File for Analysis
 
 1. Click the upload area or drag & drop an audio file
 2. Supported formats: MP3, WAV, FLAC, M4A, OGG
 3. Wait for analysis (uses real audio feature extraction)
 4. View recommendations based on your uploaded audio
 
-### 3. Command Line Interface
+### 4. Command Line Interface
 
 ```bash
 python main.py
@@ -139,7 +176,31 @@ Follow the prompts:
 - Enter song title
 - View top 10 recommendations with similarity scores
 
-### 4. API Endpoints
+### 5. API Endpoints
+
+#### Identify a song from audio
+```bash
+POST /identify
+Content-Type: multipart/form-data
+
+audio_file: <your audio file>
+
+Response:
+{
+  "message": "Song identified successfully",
+  "song": {
+    "title": "Song Title",
+    "artist": "Artist Name",
+    "album": "Album Name",
+    "cover_art_url": "https://...",
+    "release_date": "2023-01-01",
+    "identification_score": 0.95,
+    "spotify_id": "...",
+    "spotify_url": "https://open.spotify.com/track/...",
+    "musicbrainz_url": "https://musicbrainz.org/recording/..."
+  }
+}
+```
 
 #### Search for a song and get recommendations
 ```bash
@@ -160,6 +221,27 @@ audio_file: <your audio file>
 ```
 
 ## Technical Details 🔧
+
+### Song Identification System
+
+MelodySearch uses acoustic fingerprinting for song identification:
+
+1. **Audio Fingerprinting**
+   - Uses Chromaprint/AcoustID technology
+   - Generates unique fingerprints from audio waveforms
+   - Matches against AcoustID's database of millions of songs
+   - Returns high-confidence matches with scores
+
+2. **Metadata Enrichment**
+   - Fetches complete metadata from MusicBrainz
+   - Enriches with Spotify data when available
+   - Includes high-quality cover art
+   - Provides ISRC codes and tags
+
+3. **Confidence Scoring**
+   - Each identification includes a confidence score (0-1)
+   - Scores > 0.8 indicate very high confidence
+   - Visual indicators help assess reliability
 
 ### Similarity Algorithm
 
@@ -219,14 +301,23 @@ The system includes comprehensive genre mappings for:
 
 ## Dependencies 📦
 
+### Python Libraries
 - **Flask**: Web server framework
 - **spotipy**: Spotify API client
+- **pyacoustid**: Audio fingerprinting for song identification
+- **musicbrainzngs**: MusicBrainz metadata API client
 - **librosa**: Audio analysis library
 - **numpy**: Numerical computations
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
 - **scipy**: Scientific computing
 - **requests**: HTTP library for API calls
+
+### System Requirements
+- **chromaprint** (`fpcalc`): Audio fingerprinting tool
+  - Ubuntu/Debian: `sudo apt-get install libchromaprint-tools`
+  - macOS: `brew install chromaprint`
+  - Windows: Download from https://acoustid.org/chromaprint
 
 See `requirements.txt` for exact versions.
 
