@@ -22,7 +22,9 @@
    - Access artist genres and popularity data
    - Get album information and release dates
 
-4. **Audio File Upload & Analysis**
+4. **Audio Recording & File Upload**
+   - **Record audio directly from your microphone** (NEW!)
+   - Capture 15-second clips (or custom duration)
    - Upload your own audio files for analysis
    - Extract real audio features using librosa
    - Find similar tracks based on actual audio characteristics
@@ -45,7 +47,15 @@
    - Genre-aware recommendations with style mixing
    - Era-based matching (classic, vintage, modern, current)
 
-7. **Web Interface**
+7. **Audio Recording System** (NEW!)
+   - Record audio directly from your microphone
+   - High-quality WAV output (44.1 kHz, 16-bit)
+   - Configurable duration (default 15 seconds)
+   - Comprehensive error handling
+   - Progress indication during recording
+   - Compatible with existing feature extraction
+
+8. **Web Interface**
    - Clean, modern UI for song search
    - Visual display of song features and similarity scores
    - Drag-and-drop file upload support
@@ -57,6 +67,8 @@
 MelodySearch/
 ├── server.py                          # Flask web server with REST API
 ├── main.py                           # Command-line interface
+├── audio_recorder.py                 # Audio recording module (NEW!)
+├── record_audio.py                   # Audio recording script (NEW!)
 ├── feature_extraction.py             # Audio feature extraction using librosa
 ├── matcher.py                        # Similarity matching algorithms
 ├── metadata_similarity_engine.py     # Metadata-based similarity engine
@@ -65,7 +77,8 @@ MelodySearch/
 ├── mp3_to_wav.py                     # Audio format conversion utilities
 ├── templates/
 │   └── index.html                    # Web UI
-└── Data/                             # Song database storage
+├── Data/                             # Song database storage
+└── RECORDING.md                      # Audio recording documentation (NEW!)
 ```
 
 ## Installation & Setup 🚀
@@ -73,6 +86,7 @@ MelodySearch/
 ### Prerequisites
 - Python 3.8+
 - Spotify API credentials (Client ID and Client Secret)
+- PortAudio library (for audio recording, auto-installed on most systems)
 
 ### Installation Steps
 
@@ -113,7 +127,22 @@ MelodySearch/
 
 ## Usage Examples 💡
 
-### 1. Web Interface - Search by Song Name
+### 1. Record Audio (NEW!)
+
+**Interactive Recording:**
+```bash
+python record_audio.py
+```
+Follow the prompts to record 15 seconds of audio from your microphone.
+
+**Quick Recording:**
+```bash
+python record_audio.py --quick --duration 15 --output mysong.wav
+```
+
+**See [RECORDING.md](RECORDING.md) for complete audio recording documentation.**
+
+### 2. Web Interface - Search by Song Name
 
 1. Start the server: `python server.py`
 2. Open http://127.0.0.1:5000
@@ -121,14 +150,14 @@ MelodySearch/
 4. Click "Search"
 5. View similar songs with similarity scores and explanations
 
-### 2. Web Interface - Upload Audio File
+### 3. Web Interface - Upload Audio File
 
 1. Click the upload area or drag & drop an audio file
 2. Supported formats: MP3, WAV, FLAC, M4A, OGG
 3. Wait for analysis (uses real audio feature extraction)
 4. View recommendations based on your uploaded audio
 
-### 3. Command Line Interface
+### 4. Command Line Interface
 
 ```bash
 python main.py
@@ -139,7 +168,7 @@ Follow the prompts:
 - Enter song title
 - View top 10 recommendations with similarity scores
 
-### 4. API Endpoints
+### 5. API Endpoints
 
 #### Search for a song and get recommendations
 ```bash
@@ -208,8 +237,8 @@ The system includes comprehensive genre mappings for:
 3. Estimate audio features from metadata patterns
 4. Create similarity vectors
 
-**For Uploaded Audio:**
-1. Load audio file with librosa
+**For Uploaded/Recorded Audio:**
+1. Load audio file with librosa (or record from microphone)
 2. Extract tempo using beat tracking
 3. Analyze chroma for key detection
 4. Calculate RMS energy for dynamics
@@ -217,16 +246,31 @@ The system includes comprehensive genre mappings for:
 6. Estimate danceability, valence, and mood
 7. Create feature vector for matching
 
+**For Recorded Audio (NEW!):**
+1. Capture audio from system microphone using sounddevice
+2. Record with configurable duration (default 15 seconds)
+3. Save in WAV format (44.1 kHz, 16-bit, mono/stereo)
+4. Validate recording quality (silence detection, clipping check)
+5. Output compatible with existing feature extraction pipeline
+
 ## Dependencies 📦
 
+### Core Dependencies
 - **Flask**: Web server framework
 - **spotipy**: Spotify API client
 - **librosa**: Audio analysis library
 - **numpy**: Numerical computations
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
+- **sounddevice**: Audio recording from microphone (NEW!)
 - **scipy**: Scientific computing
 - **requests**: HTTP library for API calls
+
+### System Dependencies
+- **PortAudio**: System library for audio I/O (for recording feature)
+  - Linux: `sudo apt-get install portaudio19-dev libportaudio2`
+  - macOS: `brew install portaudio`
+  - Windows: Included with sounddevice package
 
 See `requirements.txt` for exact versions.
 
