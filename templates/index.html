@@ -1593,13 +1593,18 @@
 
             showLoading(show, message = 'Analyzing audio features...') {
                 const loadingDiv = document.getElementById('loading');
+                if (typeof show === 'string') {
+                    message = show;
+                    show = true;
+                }
                 if (show) {
-                    loadingDiv.innerHTML = `
-                        <div class="spinner"></div>
-                        <p>${message}</p>
-                    `;
+                    loadingDiv.querySelector('p').textContent = message;
                 }
                 loadingDiv.style.display = show ? 'block' : 'none';
+            }
+
+            hideLoading() {
+                this.showLoading(false);
             }
 
             showError(message) {

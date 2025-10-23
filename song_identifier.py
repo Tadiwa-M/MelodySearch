@@ -1,322 +1,257 @@
 """
-Song Identification Module
-
-This module provides song identification functionality using audio fingerprinting.
-It can identify songs from user-provided audio files and return metadata including
-title, artist, album, and cover art.
-
-Supports multiple identification services:
-- AudD API (default, free tier available)
-- ACRCloud (requires paid account)
-- Local fingerprinting (using dejavu library)
+Song identification module using audio fingerprinting.
+Uses AcoustID for fingerprinting and MusicBrainz for metadata.
 """
 
 import logging
-import requests
+import acoustid
+import musicbrainzngs
+from typing import Dict, Optional, Any, List
 import os
-from typing import Dict, Optional, Any
-import tempfile
-import librosa
-import numpy as np
+
+# Configure MusicBrainz user agent
+musicbrainzngs.set_useragent(
+    "MelodySearch",
+    "1.0",
+    "https://github.com/Tadiwa-M/MelodySearch"
+)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SongIdentifier:
     """
-    Identifies songs from audio files using audio fingerprinting technology.
+    Identifies songs from audio files using acoustic fingerprinting.
+    Returns metadata including title, artist, album, and cover art.
     """
-
-    def __init__(self, audd_api_key: Optional[str] = None, acrcloud_config: Optional[Dict] = None):
+    
+    def __init__(self, acoustid_api_key: Optional[str] = None):
         """
         Initialize the song identifier.
         
         Args:
-            audd_api_key: API key for AudD service (get from https://audd.io/)
-            acrcloud_config: Configuration dict for ACRCloud service
+            acoustid_api_key: AcoustID API key. If not provided, will try to get from environment.
         """
-        self.audd_api_key = audd_api_key or os.getenv('AUDD_API_KEY')
-        self.acrcloud_config = acrcloud_config
-        
-        # AudD API endpoint
-        self.audd_endpoint = "https://api.audd.io/"
-        
-    def identify_song(self, audio_file_path: str, method: str = "audd") -> Optional[Dict[str, Any]]:
+        self.acoustid_api_key = acoustid_api_key or os.getenv('ACOUSTID_API_KEY')
+        if not self.acoustid_api_key:
+            logger.warning("No AcoustID API key provided. Song identification will not work.")
+    
+    def identify_song(self, audio_file_path: str) -> Optional[Dict[str, Any]]:
         """
         Identify a song from an audio file.
         
         Args:
             audio_file_path: Path to the audio file
-            method: Identification method to use ("audd", "acrcloud", or "local")
             
         Returns:
-            Dict containing song metadata or None if identification failed
+            Dictionary with song metadata or None if identification fails
         """
+        if not self.acoustid_api_key:
+            logger.error("AcoustID API key is required for song identification")
+            return None
+        
         try:
-            if method == "audd":
-                return self._identify_with_audd(audio_file_path)
-            elif method == "acrcloud":
-                return self._identify_with_acrcloud(audio_file_path)
-            elif method == "local":
-                return self._identify_locally(audio_file_path)
-            else:
-                logging.error(f"Unknown identification method: {method}")
+            logger.info(f"Identifying song from: {audio_file_path}")
+            
+            # Generate fingerprint and match against AcoustID database
+            matches = list(acoustid.match(self.acoustid_api_key, audio_file_path))
+            
+            if not matches:
+                logger.warning("No matches found for the audio file")
                 return None
+            
+            # Get the best match (highest score)
+            best_match = max(matches, key=lambda x: x[0])
+            score, recording_id, title, artist = best_match
+            
+            logger.info(f"Match found with score {score:.2f}: {title} by {artist}")
+            
+            # Get detailed metadata from MusicBrainz
+            metadata = self._fetch_musicbrainz_metadata(recording_id)
+            
+            if metadata:
+                metadata['identification_score'] = score
+                metadata['identification_source'] = 'acoustid'
+                return metadata
+            else:
+                # Return basic info if MusicBrainz fetch fails
+                return {
+                    'title': title,
+                    'artist': artist,
+                    'identification_score': score,
+                    'identification_source': 'acoustid',
+                    'recording_id': recording_id
+                }
                 
         except Exception as e:
-            logging.error(f"Song identification failed: {e}")
+            logger.error(f"Error identifying song: {e}")
             return None
     
-    def _identify_with_audd(self, audio_file_path: str) -> Optional[Dict[str, Any]]:
+    def _fetch_musicbrainz_metadata(self, recording_id: str) -> Optional[Dict[str, Any]]:
         """
-        Identify song using AudD API.
+        Fetch detailed metadata from MusicBrainz.
         
-        AudD provides:
-        - Song title
-        - Artist name
-        - Album name
-        - Release date
-        - Album art URL
-        - Spotify ID (if available)
-        - Apple Music ID (if available)
+        Args:
+            recording_id: MusicBrainz recording ID
+            
+        Returns:
+            Dictionary with detailed metadata
         """
         try:
-            # Check if API key is available
-            if not self.audd_api_key:
-                logging.warning("AudD API key not configured. Using free tier (limited requests).")
+            # Fetch recording details
+            recording = musicbrainzngs.get_recording_by_id(
+                recording_id,
+                includes=['artists', 'releases', 'isrcs', 'tags', 'ratings']
+            )
             
-            # Prepare the audio file - AudD accepts audio files directly
-            # For better results, we can extract a 10-15 second snippet
-            audio_snippet = self._extract_audio_snippet(audio_file_path, duration=15)
+            rec = recording['recording']
             
-            if not audio_snippet:
-                # Fallback to original file if snippet extraction fails
-                audio_snippet = audio_file_path
+            # Extract basic info
+            title = rec.get('title', 'Unknown')
+            artist = rec['artist-credit'][0]['artist']['name'] if rec.get('artist-credit') else 'Unknown'
             
-            # Prepare the request
-            data = {
-                'return': 'apple_music,spotify'  # Request additional metadata
-            }
+            # Extract album info from releases
+            album = None
+            release_date = None
+            cover_art_url = None
             
-            if self.audd_api_key:
-                data['api_token'] = self.audd_api_key
+            if 'release-list' in rec and rec['release-list']:
+                # Get the primary release
+                release = rec['release-list'][0]
+                album = release.get('title', 'Unknown')
+                release_date = release.get('date', None)
+                release_id = release.get('id', None)
+                
+                # Try to get cover art
+                if release_id:
+                    cover_art_url = self._get_cover_art(release_id)
             
-            files = {
-                'file': open(audio_snippet, 'rb')
-            }
+            # Extract ISRC (International Standard Recording Code)
+            isrc = None
+            if 'isrc-list' in rec and rec['isrc-list']:
+                isrc = rec['isrc-list'][0]
             
-            # Make the API request
-            logging.info("Sending audio to AudD API for identification...")
-            response = requests.post(self.audd_endpoint, data=data, files=files, timeout=30)
-            
-            # Close the file
-            files['file'].close()
-            
-            # Clean up temporary snippet if created
-            if audio_snippet != audio_file_path and os.path.exists(audio_snippet):
-                os.unlink(audio_snippet)
-            
-            if response.status_code != 200:
-                logging.error(f"AudD API returned status code {response.status_code}")
-                return None
-            
-            result = response.json()
-            
-            # Check if song was identified
-            if result.get('status') != 'success':
-                logging.warning(f"AudD identification failed: {result.get('error', {}).get('error_message', 'Unknown error')}")
-                return None
-            
-            if not result.get('result'):
-                logging.info("AudD could not identify the song")
-                return None
-            
-            # Extract metadata from result
-            song_data = result['result']
+            # Extract genres/tags
+            tags = []
+            if 'tag-list' in rec:
+                tags = [tag['name'] for tag in rec['tag-list'][:5]]  # Top 5 tags
             
             metadata = {
-                'title': song_data.get('title'),
-                'artist': song_data.get('artist'),
-                'album': song_data.get('album'),
-                'release_date': song_data.get('release_date'),
-                'label': song_data.get('label'),
-                
-                # Cover art
-                'cover_art': song_data.get('song_link'),  # AudD provides album art URL
-                'album_art': song_data.get('song_link'),
-                
-                # Additional metadata
-                'spotify_id': song_data.get('spotify', {}).get('id') if song_data.get('spotify') else None,
-                'apple_music_id': song_data.get('apple_music', {}).get('id') if song_data.get('apple_music') else None,
-                'timecode': song_data.get('timecode'),  # Where in the song the match was found
-                'score': song_data.get('score', 0),  # Confidence score
-                
-                # Source information
-                'identification_source': 'audd',
-                'identified': True
+                'title': title,
+                'artist': artist,
+                'album': album,
+                'release_date': release_date,
+                'cover_art_url': cover_art_url,
+                'recording_id': recording_id,
+                'isrc': isrc,
+                'tags': tags,
+                'musicbrainz_url': f"https://musicbrainz.org/recording/{recording_id}"
             }
             
-            logging.info(f"Successfully identified: {metadata['title']} by {metadata['artist']}")
+            logger.info(f"Fetched metadata for: {title} by {artist}")
             return metadata
             
         except Exception as e:
-            logging.error(f"AudD identification error: {e}")
+            logger.error(f"Error fetching MusicBrainz metadata: {e}")
             return None
     
-    def _identify_with_acrcloud(self, audio_file_path: str) -> Optional[Dict[str, Any]]:
+    def _get_cover_art(self, release_id: str) -> Optional[str]:
         """
-        Identify song using ACRCloud API.
+        Get cover art URL from Cover Art Archive.
         
-        Note: Requires ACRCloud account and configuration.
-        """
-        if not self.acrcloud_config:
-            logging.error("ACRCloud configuration not provided")
-            return None
-        
-        try:
-            # ACRCloud implementation would go here
-            # This requires the acrcloud SDK
-            # For now, return None as it requires paid account
-            logging.warning("ACRCloud identification not implemented (requires paid account)")
-            return None
+        Args:
+            release_id: MusicBrainz release ID
             
-        except Exception as e:
-            logging.error(f"ACRCloud identification error: {e}")
-            return None
-    
-    def _identify_locally(self, audio_file_path: str) -> Optional[Dict[str, Any]]:
-        """
-        Identify song using local fingerprinting (dejavu library).
-        
-        Note: Requires a pre-built fingerprint database.
+        Returns:
+            URL to cover art image or None
         """
         try:
-            # Local fingerprinting would require:
-            # 1. A database of fingerprints
-            # 2. dejavu library
-            # 3. Significant setup
-            
-            logging.warning("Local identification not implemented (requires fingerprint database)")
-            return None
-            
+            # Cover Art Archive API
+            cover_art_url = f"https://coverartarchive.org/release/{release_id}/front-500"
+            return cover_art_url
         except Exception as e:
-            logging.error(f"Local identification error: {e}")
+            logger.error(f"Error getting cover art: {e}")
             return None
     
-    def _extract_audio_snippet(self, audio_file_path: str, duration: int = 15, offset: int = 30) -> Optional[str]:
+    def identify_with_spotify_fallback(self, audio_file_path: str, spotify_client=None) -> Optional[Dict[str, Any]]:
         """
-        Extract a snippet from the audio file for identification.
+        Identify song with Spotify fallback for additional metadata.
         
         Args:
             audio_file_path: Path to the audio file
-            duration: Duration of snippet in seconds
-            offset: Offset from start in seconds (middle of song often works better)
+            spotify_client: Spotipy client instance for additional metadata
             
         Returns:
-            Path to the temporary snippet file
+            Combined metadata from AcoustID/MusicBrainz and Spotify
         """
-        try:
-            # Load audio file
-            y, sr = librosa.load(audio_file_path, sr=None, mono=True)
-            
-            # Calculate snippet boundaries
-            total_duration = len(y) / sr
-            
-            # If audio is shorter than offset + duration, use what we have
-            if total_duration < offset:
-                offset = 0
-            
-            if total_duration < offset + duration:
-                duration = int(total_duration - offset)
-            
-            # Extract snippet
-            start_sample = int(offset * sr)
-            end_sample = int((offset + duration) * sr)
-            snippet = y[start_sample:end_sample]
-            
-            # Save to temporary file
-            temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-            temp_path = temp_file.name
-            temp_file.close()
-            
-            # Save snippet
-            import soundfile as sf
-            sf.write(temp_path, snippet, sr)
-            
-            logging.debug(f"Created audio snippet: {duration}s starting at {offset}s")
-            return temp_path
-            
-        except Exception as e:
-            logging.warning(f"Could not extract audio snippet: {e}")
-            return None
-    
-    def enrich_metadata_from_spotify(self, metadata: Dict[str, Any], spotify_client) -> Dict[str, Any]:
-        """
-        Enrich identified song metadata with additional data from Spotify.
+        # First, try AcoustID identification
+        metadata = self.identify_song(audio_file_path)
         
-        Args:
-            metadata: Initial metadata from identification
-            spotify_client: Spotipy client instance
-            
-        Returns:
-            Enriched metadata dict
-        """
-        try:
-            spotify_id = metadata.get('spotify_id')
-            
-            if not spotify_id:
-                # Try to search for the song on Spotify
-                query = f"{metadata.get('title', '')} {metadata.get('artist', '')}"
+        if not metadata:
+            return None
+        
+        # If we have Spotify client, try to enrich with Spotify data
+        if spotify_client and metadata.get('title') and metadata.get('artist'):
+            try:
+                # Search Spotify for the song
+                query = f"{metadata['title']} {metadata['artist']}"
                 results = spotify_client.search(q=query, type='track', limit=1)
                 
                 if results['tracks']['items']:
-                    track = results['tracks']['items'][0]
-                    spotify_id = track['id']
-                else:
-                    logging.warning("Could not find song on Spotify")
-                    return metadata
+                    spotify_track = results['tracks']['items'][0]
+                    
+                    # Add Spotify-specific metadata
+                    metadata['spotify_id'] = spotify_track['id']
+                    metadata['spotify_url'] = spotify_track['external_urls']['spotify']
+                    metadata['preview_url'] = spotify_track.get('preview_url')
+                    metadata['popularity'] = spotify_track['popularity']
+                    
+                    # Prefer Spotify's cover art if available (usually higher quality)
+                    if spotify_track['album']['images']:
+                        metadata['cover_art_url'] = spotify_track['album']['images'][0]['url']
+                        metadata['cover_art_thumbnail'] = spotify_track['album']['images'][-1]['url']
+                    
+                    # Update album info from Spotify
+                    metadata['album'] = spotify_track['album']['name']
+                    metadata['album_type'] = spotify_track['album']['album_type']
+                    
+                    logger.info(f"Enriched with Spotify data: {metadata['title']}")
+                    
+            except Exception as e:
+                logger.warning(f"Could not enrich with Spotify data: {e}")
+        
+        return metadata
+    
+    def batch_identify(self, audio_file_paths: List[str]) -> List[Dict[str, Any]]:
+        """
+        Identify multiple songs in batch.
+        
+        Args:
+            audio_file_paths: List of paths to audio files
             
-            # Get full track details
-            track = spotify_client.track(spotify_id)
-            album = spotify_client.album(track['album']['id'])
-            
-            # Enrich metadata
-            metadata.update({
-                'title': track['name'],  # Use Spotify's official title
-                'artist': track['artists'][0]['name'],
-                'album': track['album']['name'],
-                'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                'cover_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                'release_date': track['album']['release_date'],
-                'spotify_id': track['id'],
-                'spotify_url': track['external_urls']['spotify'],
-                'preview_url': track.get('preview_url'),
-                'popularity': track['popularity'],
-                'duration_ms': track['duration_ms'],
-                'explicit': track['explicit'],
-                
-                # Album details
-                'album_type': album['album_type'],
-                'album_artist': album['artists'][0]['name'],
-                'album_release_date': album['release_date'],
-                'album_total_tracks': album['total_tracks'],
-                'album_genres': album.get('genres', []),
-                'album_label': album.get('label'),
-                
-                # Artist details
-                'artist_id': track['artists'][0]['id'],
-                
-                # Enriched flag
-                'spotify_enriched': True
-            })
-            
-            # Get artist info for genres
-            artist = spotify_client.artist(track['artists'][0]['id'])
-            metadata['artist_genres'] = artist['genres']
-            metadata['artist_popularity'] = artist['popularity']
-            metadata['artist_followers'] = artist['followers']['total']
-            
-            logging.info(f"Successfully enriched metadata from Spotify")
-            return metadata
-            
-        except Exception as e:
-            logging.error(f"Failed to enrich metadata from Spotify: {e}")
-            return metadata
+        Returns:
+            List of metadata dictionaries
+        """
+        results = []
+        for audio_path in audio_file_paths:
+            result = self.identify_song(audio_path)
+            if result:
+                results.append(result)
+        return results
+
+
+# Utility function for quick identification
+def identify_song_from_file(audio_file_path: str, acoustid_api_key: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Quick utility function to identify a song from a file.
+    
+    Args:
+        audio_file_path: Path to the audio file
+        acoustid_api_key: AcoustID API key (optional, will use environment variable)
+        
+    Returns:
+        Dictionary with song metadata or None
+    """
+    identifier = SongIdentifier(acoustid_api_key)
+    return identifier.identify_song(audio_file_path)

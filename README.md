@@ -6,12 +6,14 @@
 
 ### Core Capabilities
 
-1. **Song Identification**
-   - Identify any song from user-provided audio (like Shazam)
-   - Upload audio files and get song metadata instantly
-   - Returns title, artist, album, and cover art
-   - Free tier available (50 identifications per day)
-   - Automatic Spotify metadata enrichment
+1. **🔍 Song Identification** (NEW!)
+   - **Real-time microphone recording** - Record audio directly from your device like Shazam
+   - Identify unknown songs from audio files using acoustic fingerprinting
+   - Get complete metadata: title, artist, album, release date
+   - View high-quality cover art
+   - Direct links to Spotify and MusicBrainz
+   - Confidence scores for identification accuracy
+   - Powered by AcoustID and MusicBrainz databases
 
 2. **Song Similarity Search**
    - Find songs similar to any track on Spotify
@@ -24,19 +26,21 @@
    - **Audio Feature Analysis**: Extracts tempo, energy, valence, danceability, and spectral features
    - **Real Audio File Upload**: Analyze your own audio files (MP3, WAV, FLAC, M4A, OGG)
 
-3. **Spotify Integration**
+4. **Spotify Integration**
    - Search for any song in Spotify's catalog
    - Extract comprehensive song metadata
    - Access artist genres and popularity data
    - Get album information and release dates
 
-4. **Audio File Upload & Analysis**
+4. **Audio Recording & File Upload**
+   - **Record audio directly from your microphone** (NEW!)
+   - Capture 15-second clips (or custom duration)
    - Upload your own audio files for analysis
    - Extract real audio features using librosa
    - Find similar tracks based on actual audio characteristics
    - Compare uploaded audio with Spotify catalog
 
-5. **Advanced Feature Extraction**
+6. **Advanced Feature Extraction**
    - **Tempo & Rhythm**: BPM detection, beat stability, rhythm patterns
    - **Tonal Features**: Key detection, mode, chroma analysis
    - **Energy & Dynamics**: RMS energy, spectral characteristics
@@ -48,12 +52,20 @@
    - **Liveness**: Live performance vs studio recording detection
    - **Loudness**: Dynamic range analysis
 
-6. **Cross-Genre Discovery**
+7. **Cross-Genre Discovery**
    - Mathematical similarity matching that works across different genres
    - Genre-aware recommendations with style mixing
    - Era-based matching (classic, vintage, modern, current)
 
-7. **Web Interface**
+7. **Audio Recording System** (NEW!)
+   - Record audio directly from your microphone
+   - High-quality WAV output (44.1 kHz, 16-bit)
+   - Configurable duration (default 15 seconds)
+   - Comprehensive error handling
+   - Progress indication during recording
+   - Compatible with existing feature extraction
+
+8. **Web Interface**
    - Clean, modern UI for song search
    - Visual display of song features and similarity scores
    - Drag-and-drop file upload support
@@ -72,6 +84,8 @@ MelodySearch/
 ├── server.py                          # Flask web server with REST API
 ├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── main.py                           # Command-line interface
+├── audio_recorder.py                 # Audio recording module (NEW!)
+├── record_audio.py                   # Audio recording script (NEW!)
 ├── feature_extraction.py             # Audio feature extraction using librosa
 ├── matcher.py                        # Similarity matching algorithms
 ├── metadata_similarity_engine.py     # Metadata-based similarity engine
@@ -81,8 +95,8 @@ MelodySearch/
 ├── library_manager.py                # User library and collections management
 ├── templates/
 │   └── index.html                    # Web UI
-└── Data/                             # Song database storage
-    └── library/                      # User library storage (personal)
+├── Data/                             # Song database storage
+└── RECORDING.md                      # Audio recording documentation (NEW!)
 ```
 
 ## Installation & Setup 🚀
@@ -90,7 +104,7 @@ MelodySearch/
 ### Prerequisites
 - Python 3.8+
 - Spotify API credentials (Client ID and Client Secret)
-- AudD API key (optional, for song identification - free tier available)
+- PortAudio library (for audio recording, auto-installed on most systems)
 
 ### Installation Steps
 
@@ -100,30 +114,40 @@ MelodySearch/
    cd MelodySearch
    ```
 
-2. **Install dependencies**
+2. **Install system dependencies (Ubuntu/Debian)**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install libchromaprint-tools
+   ```
+   
+   For macOS:
+   ```bash
+   brew install chromaprint
+   ```
+
+3. **Install Python dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up API credentials**
+4. **Set up API credentials**
    
-   Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and add your credentials:
-   - **Spotify API** (required): Get from https://developer.spotify.com/dashboard
-   - **AudD API** (optional): Get free key from https://audd.io/ (50 requests/day)
+   Create a `.env` file or set environment variables:
    
    ```bash
-   SPOTIFY_CLIENT_ID='your_spotify_client_id'
-   SPOTIFY_CLIENT_SECRET='your_spotify_client_secret'
-   AUDD_API_KEY='your_audd_api_key'  # Optional for song identification
-   SECRET_KEY='generate_a_random_secret_key'
+   # Spotify API (required)
+   export SPOTIFY_CLIENT_ID='your_client_id'
+   export SPOTIFY_CLIENT_SECRET='your_client_secret'
+   
+   # AcoustID API (required for song identification)
+   # Get your free API key at: https://acoustid.org/new-application
+   export ACOUSTID_API_KEY='your_acoustid_api_key'
+   
+   # Flask secret key (required for security)
+   export SECRET_KEY='your-random-secret-key'
    ```
 
-4. **Run the application**
+5. **Run the application**
    
    **Web Interface:**
    ```bash
@@ -138,45 +162,20 @@ MelodySearch/
 
 ## Usage Examples 💡
 
-### 1. Song Identification - Identify Unknown Songs
+### 1. Record Audio (NEW!)
 
-**Use Case:** You have an audio recording and want to know what song it is.
-
-1. Start the server: `python server.py`
-2. Open http://127.0.0.1:5000
-3. Upload an audio file (MP3, WAV, FLAC, M4A, or OGG)
-4. Get instant results with:
-   - Song title
-   - Artist name
-   - Album name
-   - Cover art
-   - Release date
-   - Spotify link
-   - Additional metadata
-
-**API Usage:**
+**Interactive Recording:**
 ```bash
-curl -X POST http://127.0.0.1:5000/identify \
-  -F "audio_file=@unknown_song.mp3"
+python record_audio.py
+```
+Follow the prompts to record 15 seconds of audio from your microphone.
+
+**Quick Recording:**
+```bash
+python record_audio.py --quick --duration 15 --output mysong.wav
 ```
 
-**Response:**
-```json
-{
-  "message": "Song identified successfully",
-  "identified": true,
-  "song": {
-    "title": "Blinding Lights",
-    "artist": "The Weeknd",
-    "album": "After Hours",
-    "cover_art": "https://i.scdn.co/image/...",
-    "release_date": "2019-11-29",
-    "spotify_url": "https://open.spotify.com/track/...",
-    "genres": ["canadian pop", "pop"],
-    ...
-  }
-}
-```
+**See [RECORDING.md](RECORDING.md) for complete audio recording documentation.**
 
 ### 2. Web Interface - Search by Song Name
 
@@ -187,7 +186,7 @@ curl -X POST http://127.0.0.1:5000/identify \
 5. View similar songs with similarity scores and explanations
 6. Click "Save" on any recommendation to add it to your library
 
-### 3. Web Interface - Upload Audio File for Similarity
+### 3. Web Interface - Upload Audio File for Analysis
 
 1. Click the upload area or drag & drop an audio file
 2. Supported formats: MP3, WAV, FLAC, M4A, OGG
@@ -217,49 +216,6 @@ Follow the prompts:
 5. **Manage Collections**: View, edit, or delete collections as needed
 
 ### 5. API Endpoints
-
-#### Identify a song from audio
-```bash
-POST /identify
-Content-Type: multipart/form-data
-
-audio_file: <your audio file>
-```
-
-#### Find similar songs (by title and artist) - RECOMMENDED
-```bash
-POST /similar-songs
-Content-Type: application/json
-
-{
-  "title": "Blinding Lights",
-  "artist": "The Weeknd"
-}
-```
-
-**Response:**
-```json
-{
-  "original_song": {
-    "title": "Blinding Lights",
-    "artist": "The Weeknd",
-    "spotify_id": "0VjIjW4GlUZAMYd2vXMi3b",
-    "popularity": 95,
-    "genres": ["canadian pop", "pop"],
-    "audio_features": {...}
-  },
-  "similar_songs": [
-    {
-      "title": "Save Your Tears",
-      "artist": "The Weeknd",
-      "similarity_score": 0.89,
-      "similarity_explanation": "Similar musical genres (match: 95%)",
-      "audio_features": {...}
-    }
-  ],
-  "total_matches": 10
-}
-```
 
 #### Search for a song and get recommendations (by name only)
 ```bash
@@ -322,6 +278,27 @@ GET /library/stats
 
 ## Technical Details 🔧
 
+### Song Identification System
+
+MelodySearch uses acoustic fingerprinting for song identification:
+
+1. **Audio Fingerprinting**
+   - Uses Chromaprint/AcoustID technology
+   - Generates unique fingerprints from audio waveforms
+   - Matches against AcoustID's database of millions of songs
+   - Returns high-confidence matches with scores
+
+2. **Metadata Enrichment**
+   - Fetches complete metadata from MusicBrainz
+   - Enriches with Spotify data when available
+   - Includes high-quality cover art
+   - Provides ISRC codes and tags
+
+3. **Confidence Scoring**
+   - Each identification includes a confidence score (0-1)
+   - Scores > 0.8 indicate very high confidence
+   - Visual indicators help assess reliability
+
 ### Similarity Algorithm
 
 MelodySearch uses a hybrid similarity approach:
@@ -369,8 +346,8 @@ The system includes comprehensive genre mappings for:
 3. Estimate audio features from metadata patterns
 4. Create similarity vectors
 
-**For Uploaded Audio:**
-1. Load audio file with librosa
+**For Uploaded/Recorded Audio:**
+1. Load audio file with librosa (or record from microphone)
 2. Extract tempo using beat tracking
 3. Analyze chroma for key detection
 4. Calculate RMS energy for dynamics
@@ -378,16 +355,39 @@ The system includes comprehensive genre mappings for:
 6. Estimate danceability, valence, and mood
 7. Create feature vector for matching
 
+**For Recorded Audio (NEW!):**
+1. Capture audio from system microphone using sounddevice
+2. Record with configurable duration (default 15 seconds)
+3. Save in WAV format (44.1 kHz, 16-bit, mono/stereo)
+4. Validate recording quality (silence detection, clipping check)
+5. Output compatible with existing feature extraction pipeline
+
 ## Dependencies 📦
 
+### Core Dependencies
 - **Flask**: Web server framework
 - **spotipy**: Spotify API client
+- **pyacoustid**: Audio fingerprinting for song identification
+- **musicbrainzngs**: MusicBrainz metadata API client
 - **librosa**: Audio analysis library
 - **numpy**: Numerical computations
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
+- **sounddevice**: Audio recording from microphone (NEW!)
 - **scipy**: Scientific computing
 - **requests**: HTTP library for API calls (also used for AudD API)
+
+### System Requirements
+- **chromaprint** (`fpcalc`): Audio fingerprinting tool
+  - Ubuntu/Debian: `sudo apt-get install libchromaprint-tools`
+  - macOS: `brew install chromaprint`
+  - Windows: Download from https://acoustid.org/chromaprint
+
+### System Dependencies
+- **PortAudio**: System library for audio I/O (for recording feature)
+  - Linux: `sudo apt-get install portaudio19-dev libportaudio2`
+  - macOS: `brew install portaudio`
+  - Windows: Included with sounddevice package
 
 See `requirements.txt` for exact versions.
 
