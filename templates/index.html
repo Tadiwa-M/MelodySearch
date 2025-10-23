@@ -12,10 +12,11 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
+            font-family: 'Circular', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #121212;
             color: #ffffff;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container {
@@ -27,41 +28,52 @@
         /* Header */
         .header {
             padding: 40px 0;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid #282828;
             margin-bottom: 40px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #121212 100%);
         }
 
         .header h1 {
             font-size: 2.5rem;
-            font-weight: 800;
+            font-weight: 900;
             color: #ffffff;
             margin-bottom: 8px;
+            letter-spacing: -0.04em;
         }
 
         .header p {
-            color: #888888;
+            color: #b3b3b3;
             font-size: 1.1rem;
+            font-weight: 400;
         }
 
         /* Search */
         .search-section {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 32px;
             margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .search-section:hover {
+            background: #1a1a1a;
+            border-color: #383838;
         }
 
         .search-section h2 {
-            font-size: 1.3rem;
-            font-weight: 600;
+            font-size: 1.4rem;
+            font-weight: 700;
             color: #ffffff;
             margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
         .search-section p {
-            color: #888888;
+            color: #b3b3b3;
             margin-bottom: 24px;
+            font-size: 0.95rem;
         }
 
         .search-form {
@@ -73,63 +85,80 @@
         .search-input {
             flex: 1;
             padding: 16px 20px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
+            background: #242424;
+            border: 2px solid #333333;
+            border-radius: 500px;
             color: #ffffff;
             font-size: 1rem;
-            transition: border-color 0.2s ease;
+            transition: all 0.2s ease;
         }
 
         .search-input:focus {
             outline: none;
-            border-color: #0066cc;
+            border-color: #1ed760;
+            background: #2a2a2a;
         }
 
         .search-input::placeholder {
-            color: #666666;
+            color: #6a6a6a;
         }
 
         .search-btn {
-            padding: 16px 24px;
-            background: #0066cc;
-            color: white;
+            padding: 16px 32px;
+            background: #1ed760;
+            color: #000000;
             border: none;
-            border-radius: 8px;
+            border-radius: 500px;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
+            text-transform: none;
+            letter-spacing: 0.1em;
         }
 
         .search-btn:hover {
-            background: #0052a3;
+            background: #1fdf64;
+            transform: scale(1.04);
+        }
+
+        .search-btn:active {
+            transform: scale(0.96);
         }
 
         .search-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
 
         /* Upload Section */
         .upload-section {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 32px;
             margin-bottom: 40px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            background: #1a1a1a;
+            border-color: #383838;
         }
 
         .upload-section h2 {
-            font-size: 1.3rem;
-            font-weight: 600;
+            font-size: 1.4rem;
+            font-weight: 700;
             color: #ffffff;
             margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
         .upload-section p {
-            color: #888888;
+            color: #b3b3b3;
             margin-bottom: 24px;
+            font-size: 0.95rem;
         }
 
         /* Audio Tabs */
@@ -137,16 +166,16 @@
             display: flex;
             gap: 8px;
             margin-bottom: 24px;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid #282828;
         }
 
         .audio-tab {
             padding: 12px 24px;
             background: transparent;
             border: none;
-            color: #888888;
+            color: #b3b3b3;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             border-bottom: 3px solid transparent;
             transition: all 0.2s ease;
@@ -154,11 +183,12 @@
 
         .audio-tab:hover {
             color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .audio-tab.active {
-            color: #0066cc;
-            border-bottom-color: #0066cc;
+            color: #1ed760;
+            border-bottom-color: #1ed760;
         }
 
         .audio-tab-content {
@@ -171,53 +201,57 @@
 
         /* Recording Area */
         .recording-area {
-            border: 2px solid #2a2a2a;
-            border-radius: 12px;
+            border: 2px solid #282828;
+            border-radius: 8px;
             padding: 40px;
             text-align: center;
             transition: all 0.3s ease;
             margin-bottom: 20px;
-            background: #0a0a0a;
+            background: #1a1a1a;
         }
 
         .recording-area.recording {
-            border-color: #dc3545;
-            background: rgba(220, 53, 69, 0.1);
+            border-color: #e22134;
+            background: rgba(226, 33, 52, 0.1);
             animation: pulse 1.5s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(226, 33, 52, 0.3);
         }
 
         .recording-area.has-recording {
-            border-color: #28a745;
-            background: rgba(40, 167, 69, 0.1);
+            border-color: #1ed760;
+            background: rgba(30, 215, 96, 0.1);
+            box-shadow: 0 0 20px rgba(30, 215, 96, 0.2);
         }
 
         /* Upload Area */
         .upload-area {
-            border: 2px dashed #2a2a2a;
-            border-radius: 12px;
+            border: 2px dashed #282828;
+            border-radius: 8px;
             padding: 40px;
             text-align: center;
             transition: all 0.3s ease;
             margin-bottom: 20px;
-            background: #0a0a0a;
+            background: #1a1a1a;
             cursor: pointer;
         }
 
         .upload-area:hover {
-            border-color: #0066cc;
-            background: rgba(0, 102, 204, 0.05);
+            border-color: #1ed760;
+            background: rgba(30, 215, 96, 0.05);
+            transform: translateY(-2px);
         }
 
         .upload-area.drag-over {
-            border-color: #0066cc;
-            background: rgba(0, 102, 204, 0.1);
+            border-color: #1ed760;
+            background: rgba(30, 215, 96, 0.1);
             border-style: solid;
+            transform: scale(1.02);
         }
 
         .upload-area.has-file {
-            border-color: #28a745;
+            border-color: #1ed760;
             border-style: solid;
-            background: rgba(40, 167, 69, 0.1);
+            background: rgba(30, 215, 96, 0.1);
         }
 
         @keyframes pulse {
@@ -253,25 +287,32 @@
 
         .upload-btn {
             padding: 16px 32px;
-            background: #28a745;
-            color: white;
+            background: #1ed760;
+            color: #000000;
             border: none;
-            border-radius: 8px;
+            border-radius: 500px;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
             width: 100%;
+            letter-spacing: 0.05em;
         }
 
         .upload-btn:hover:not(:disabled) {
-            background: #218838;
+            background: #1fdf64;
+            transform: scale(1.04);
+        }
+
+        .upload-btn:active:not(:disabled) {
+            transform: scale(0.96);
         }
 
         .upload-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            background: #6c757d;
+            background: #535353;
+            transform: none;
         }
 
         /* Loading */
@@ -315,14 +356,20 @@
 
         /* Song Info */
         .song-info {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 24px;
             margin-bottom: 24px;
             display: flex;
             align-items: center;
             gap: 24px;
+            transition: all 0.2s ease;
+        }
+
+        .song-info:hover {
+            background: #1a1a1a;
+            border-color: #383838;
         }
 
         .song-details h3 {
@@ -390,17 +437,25 @@
         }
 
         .feature-group {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 24px;
+            transition: all 0.2s ease;
+        }
+
+        .feature-group:hover {
+            background: #1a1a1a;
+            border-color: #383838;
+            transform: translateY(-2px);
         }
 
         .feature-group h4 {
             color: #ffffff;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 16px;
             font-size: 1.1rem;
+            letter-spacing: -0.01em;
         }
 
         .feature-item {
@@ -408,7 +463,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 8px 0;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid #282828;
         }
 
         .feature-item:last-child {
@@ -416,11 +471,11 @@
         }
 
         .feature-item span:first-child {
-            color: #cccccc;
+            color: #b3b3b3;
         }
 
         .feature-value {
-            font-weight: 600;
+            font-weight: 700;
             color: #ffffff;
         }
 
@@ -431,22 +486,26 @@
 
         .recommendations h2 {
             font-size: 1.8rem;
-            font-weight: 700;
+            font-weight: 900;
             margin-bottom: 24px;
             color: #ffffff;
+            letter-spacing: -0.04em;
         }
 
         .recommendation-card {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 24px;
             margin-bottom: 16px;
-            transition: border-color 0.2s ease;
+            transition: all 0.2s ease;
         }
 
         .recommendation-card:hover {
-            border-color: #2a2a2a;
+            background: #1a1a1a;
+            border-color: #383838;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         }
 
         .recommendation-header {
@@ -475,17 +534,18 @@
         }
 
         .similarity-score {
-            background: #0066cc;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
+            background: #1ed760;
+            color: #000000;
+            padding: 8px 16px;
+            border-radius: 500px;
+            font-weight: 700;
             font-size: 0.9rem;
             white-space: nowrap;
+            letter-spacing: 0.05em;
         }
 
         .similarity-score.upload-match {
-            background: #28a745;
+            background: #1ed760;
         }
 
         .recommendation-explanation {
@@ -563,20 +623,21 @@
 
         /* Scrollbar styling */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 12px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #0a0a0a;
+            background: #121212;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #2a2a2a;
-            border-radius: 4px;
+            background: #282828;
+            border-radius: 6px;
+            border: 3px solid #121212;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #3a3a3a;
+            background: #383838;
         }
 
         /* Navigation Tabs */
@@ -584,16 +645,16 @@
             display: flex;
             gap: 8px;
             margin-bottom: 24px;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid #282828;
         }
 
         .nav-tab {
             padding: 12px 24px;
             background: transparent;
             border: none;
-            color: #888888;
+            color: #b3b3b3;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             border-bottom: 3px solid transparent;
             transition: all 0.2s ease;
@@ -601,11 +662,12 @@
 
         .nav-tab:hover {
             color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .nav-tab.active {
-            color: #0066cc;
-            border-bottom-color: #0066cc;
+            color: #1ed760;
+            border-bottom-color: #1ed760;
         }
 
         .tab-content {
@@ -618,9 +680,9 @@
 
         /* Library Styles */
         .library-section {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
             padding: 32px;
             margin-bottom: 24px;
         }
@@ -650,34 +712,38 @@
 
         .action-btn {
             padding: 10px 20px;
-            background: #0066cc;
-            color: white;
+            background: #1ed760;
+            color: #000000;
             border: none;
-            border-radius: 8px;
+            border-radius: 500px;
             font-size: 0.9rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
+            letter-spacing: 0.05em;
         }
 
         .action-btn:hover {
-            background: #0052a3;
+            background: #1fdf64;
+            transform: scale(1.04);
         }
 
         .action-btn.secondary {
-            background: #2a2a2a;
+            background: #282828;
+            color: #ffffff;
         }
 
         .action-btn.secondary:hover {
-            background: #3a3a3a;
+            background: #333333;
         }
 
         .action-btn.danger {
-            background: #dc3545;
+            background: #e22134;
+            color: #ffffff;
         }
 
         .action-btn.danger:hover {
-            background: #c82333;
+            background: #ff3347;
         }
 
         .library-song-card {
@@ -723,15 +789,16 @@
         }
 
         .icon-btn.save {
-            background: #28a745;
+            background: #1ed760;
+            color: #000000;
         }
 
         .icon-btn.save:hover {
-            background: #218838;
+            background: #1fdf64;
         }
 
         .icon-btn.saved {
-            background: #28a745;
+            background: #1ed760;
             opacity: 0.6;
             cursor: not-allowed;
         }
@@ -953,16 +1020,16 @@
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #dc3545;">
+                        <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #e22134;">
                             ⏺️ Start Recording
                         </button>
-                        <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #6c757d;" disabled>
+                        <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #535353;" disabled>
                             ⏹️ Stop Recording
                         </button>
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 12px;">
-                        <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #0066cc;" disabled>
+                        <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled>
                             🔍 Analyze Recording
                         </button>
                         <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled>
@@ -989,16 +1056,16 @@
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="upload-btn" id="selectFileBtn" style="flex: 1; background: #28a745;">
+                        <button type="button" class="upload-btn" id="selectFileBtn" style="flex: 1; background: #1ed760; color: #000000;">
                             📂 Select File
                         </button>
-                        <button type="button" class="upload-btn" id="clearFileBtn" style="flex: 1; background: #6c757d;" disabled>
+                        <button type="button" class="upload-btn" id="clearFileBtn" style="flex: 1; background: #535353;" disabled>
                             🗑️ Clear
                         </button>
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 12px;">
-                        <button type="button" class="upload-btn" id="analyzeUploadBtn" style="flex: 1; background: #0066cc;" disabled>
+                        <button type="button" class="upload-btn" id="analyzeUploadBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled>
                             🔍 Analyze Audio
                         </button>
                         <button type="button" class="upload-btn" id="identifyUploadBtn" style="flex: 1; background: #9c27b0;" disabled>
@@ -1490,7 +1557,7 @@
                 }
             }
 
-            uploadRecordedAudio(endpoint) {
+            async uploadRecordedAudio(endpoint) {
                 if (!this.recordedBlob) {
                     this.showError('No recording available');
                     return;
