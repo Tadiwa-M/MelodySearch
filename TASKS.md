@@ -1,7 +1,7 @@
 # What Tasks Can MelodySearch Do? 🎵
 
 ## Quick Answer
-MelodySearch can analyze music and find similar songs using mathematical algorithms. Here's what it can do:
+MelodySearch can identify unknown songs and find similar music using mathematical algorithms and audio fingerprinting. Here's what it can do:
 
 ## Main Tasks
 
@@ -97,6 +97,11 @@ curl -X POST http://127.0.0.1:5000/upload \
 
 ## Real-World Use Cases
 
+1. **Song Identification** (NEW!)
+   - "What song is playing right now?"
+   - Identify songs from recordings, videos, or live performances
+   - Get complete information about unknown tracks
+
 1. **Song Identification**
    - "What's this song playing on the radio?"
    - Identify background music in videos
@@ -115,6 +120,7 @@ curl -X POST http://127.0.0.1:5000/upload \
    - Understand what your track sounds like
 
 5. **DJ/Radio Programming**
+   - Identify tracks you hear
    - Identify unknown tracks
    - Create smooth transitions between songs
    - Build themed sets
@@ -123,10 +129,12 @@ curl -X POST http://127.0.0.1:5000/upload \
    - Identify and catalog songs
    - Analyze musical trends over time
    - Study genre evolution
+   - Catalog unknown recordings
 
 7. **Personal Music Library**
    - Identify and organize your collection
    - Organize your collection by similarity
+   - Identify and tag unknown files
    - Discover forgotten tracks in your library
 
 ## Task Limitations
