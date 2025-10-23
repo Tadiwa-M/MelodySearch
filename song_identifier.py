@@ -174,6 +174,77 @@ class SongIdentifier:
             logger.error(f"Error getting cover art: {e}")
             return None
     
+    def enrich_metadata_from_spotify(self, metadata: Dict[str, Any], spotify_client=None) -> Dict[str, Any]:
+        """
+        Enrich existing metadata with Spotify data.
+        
+        Args:
+            metadata: Existing song metadata from identification
+            spotify_client: Spotipy client instance for additional metadata
+            
+        Returns:
+            Enriched metadata with Spotify data
+        """
+        if not metadata:
+            return metadata
+        
+        # Map identification_score to score for compatibility
+        if 'identification_score' in metadata and 'score' not in metadata:
+            metadata['score'] = metadata['identification_score']
+            
+        # If we have Spotify client, try to enrich with Spotify data
+        if spotify_client and metadata.get('title') and metadata.get('artist'):
+            try:
+                # Search Spotify for the song
+                query = f"{metadata['title']} {metadata['artist']}"
+                results = spotify_client.search(q=query, type='track', limit=1)
+                
+                if results['tracks']['items']:
+                    spotify_track = results['tracks']['items'][0]
+                    
+                    # Add Spotify-specific metadata
+                    metadata['spotify_id'] = spotify_track['id']
+                    metadata['spotify_url'] = spotify_track['external_urls']['spotify']
+                    metadata['preview_url'] = spotify_track.get('preview_url')
+                    metadata['popularity'] = spotify_track['popularity']
+                    metadata['duration_ms'] = spotify_track.get('duration_ms')
+                    metadata['explicit'] = spotify_track.get('explicit', False)
+                    
+                    # Prefer Spotify's cover art if available (usually higher quality)
+                    if spotify_track['album']['images']:
+                        metadata['cover_art_url'] = spotify_track['album']['images'][0]['url']
+                        metadata['album_art'] = spotify_track['album']['images'][0]['url']
+                        metadata['cover_art'] = spotify_track['album']['images'][0]['url']
+                        metadata['cover_art_thumbnail'] = spotify_track['album']['images'][-1]['url']
+                    
+                    # Update album info from Spotify
+                    metadata['album'] = spotify_track['album']['name']
+                    metadata['album_type'] = spotify_track['album']['album_type']
+                    metadata['album_total_tracks'] = spotify_track['album'].get('total_tracks')
+                    metadata['album_release_date'] = spotify_track['album'].get('release_date')
+                    
+                    # Get artist info
+                    if spotify_track.get('artists'):
+                        artist_id = spotify_track['artists'][0]['id']
+                        try:
+                            artist_info = spotify_client.artist(artist_id)
+                            metadata['artist_genres'] = artist_info.get('genres', [])
+                        except Exception as e:
+                            logger.warning(f"Could not fetch artist genres: {e}")
+                    
+                    # Mark as enriched
+                    metadata['spotify_enriched'] = True
+                    
+                    logger.info(f"Enriched with Spotify data: {metadata['title']}")
+                    
+            except Exception as e:
+                logger.warning(f"Could not enrich with Spotify data: {e}")
+                metadata['spotify_enriched'] = False
+        else:
+            metadata['spotify_enriched'] = False
+        
+        return metadata
+    
     def identify_with_spotify_fallback(self, audio_file_path: str, spotify_client=None) -> Optional[Dict[str, Any]]:
         """
         Identify song with Spotify fallback for additional metadata.
@@ -191,37 +262,8 @@ class SongIdentifier:
         if not metadata:
             return None
         
-        # If we have Spotify client, try to enrich with Spotify data
-        if spotify_client and metadata.get('title') and metadata.get('artist'):
-            try:
-                # Search Spotify for the song
-                query = f"{metadata['title']} {metadata['artist']}"
-                results = spotify_client.search(q=query, type='track', limit=1)
-                
-                if results['tracks']['items']:
-                    spotify_track = results['tracks']['items'][0]
-                    
-                    # Add Spotify-specific metadata
-                    metadata['spotify_id'] = spotify_track['id']
-                    metadata['spotify_url'] = spotify_track['external_urls']['spotify']
-                    metadata['preview_url'] = spotify_track.get('preview_url')
-                    metadata['popularity'] = spotify_track['popularity']
-                    
-                    # Prefer Spotify's cover art if available (usually higher quality)
-                    if spotify_track['album']['images']:
-                        metadata['cover_art_url'] = spotify_track['album']['images'][0]['url']
-                        metadata['cover_art_thumbnail'] = spotify_track['album']['images'][-1]['url']
-                    
-                    # Update album info from Spotify
-                    metadata['album'] = spotify_track['album']['name']
-                    metadata['album_type'] = spotify_track['album']['album_type']
-                    
-                    logger.info(f"Enriched with Spotify data: {metadata['title']}")
-                    
-            except Exception as e:
-                logger.warning(f"Could not enrich with Spotify data: {e}")
-        
-        return metadata
+        # Enrich with Spotify data
+        return self.enrich_metadata_from_spotify(metadata, spotify_client)
     
     def batch_identify(self, audio_file_paths: List[str]) -> List[Dict[str, Any]]:
         """

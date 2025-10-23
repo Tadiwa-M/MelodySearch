@@ -28,7 +28,7 @@ def test_identifier_module():
     
     # Test 2: Check methods exist
     print("\n2. Testing method availability:")
-    methods = ['identify_song', '_identify_with_audd', 'enrich_metadata_from_spotify']
+    methods = ['identify_song', 'enrich_metadata_from_spotify']
     for method in methods:
         if hasattr(identifier, method):
             print(f"✓ Method '{method}' exists")
@@ -88,7 +88,7 @@ def test_api_endpoint():
     print("\nNote: This test requires:")
     print("  1. Server to be running (python server.py)")
     print("  2. An audio file to test with")
-    print("  3. AUDD_API_KEY environment variable (optional, free tier works)")
+    print("  3. ACOUSTID_API_KEY environment variable (optional for testing)")
     
     print("\nManual testing commands:")
     print("  1. Start the server:")
@@ -112,12 +112,12 @@ def test_integration():
     print("\nThe song identification feature provides:")
     print("  ✓ SongIdentifier class for identifying songs from audio")
     print("  ✓ /identify API endpoint for web requests")
-    print("  ✓ AudD API integration (free tier: 50 requests/day)")
+    print("  ✓ AcoustID API integration for audio fingerprinting")
     print("  ✓ Spotify metadata enrichment")
     print("  ✓ Returns: title, artist, album, cover art, and more")
     
     print("\nHow to use:")
-    print("  1. Set AUDD_API_KEY in .env (optional, free tier works without it)")
+    print("  1. Set ACOUSTID_API_KEY in .env for song identification")
     print("  2. Upload audio file to /identify endpoint")
     print("  3. Receive song metadata in response")
     
