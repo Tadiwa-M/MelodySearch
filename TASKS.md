@@ -60,7 +60,19 @@ Extract detailed musical characteristics:
   - Weighted feature importance
   - Multi-dimensional comparison
 
-### 8. 🌐 Web Interface + API
+### 8. 💾 Personal Library Management
+- Save favorite songs from search results
+- Build your personal music library
+- Quick access to your liked songs
+- Track when songs were added
+
+### 9. 📚 Create Custom Collections
+- Organize songs into playlists/collections
+- Name and describe your collections
+- Add/remove songs from collections
+- Manage multiple collections (Workout, Chill, Party, etc.)
+
+### 10. 🌐 Web Interface + API
 - **Web UI**: Easy-to-use browser interface
 - **REST API**: Integrate into your own apps
 - **Drag & Drop**: Upload files easily
@@ -110,32 +122,39 @@ curl -X POST http://127.0.0.1:5000/upload \
 2. **Music Discovery** 
    - "I like this song, what else is similar?"
    - Find new artists with similar styles
+   - Save discoveries to your library for later
 
 3. **Playlist Creation**
    - Build cohesive playlists with similar vibes
+   - Create collections for different moods
    - Mix genres intelligently
+   - Organize with custom collections
 
 4. **Music Production**
    - Upload your demo and find commercial references
    - Understand what your track sounds like
+   - Save reference tracks to collections
 
 5. **DJ/Radio Programming**
    - Identify tracks you hear
    - Identify unknown tracks
    - Create smooth transitions between songs
-   - Build themed sets
+   - Build themed sets using collections
+   - Save successful combinations for future gigs
 
 6. **Music Research**
    - Identify and catalog songs
    - Analyze musical trends over time
    - Study genre evolution
-   - Catalog unknown recordings
+   - Build collections of examples by era/style
 
 7. **Personal Music Library**
    - Identify and organize your collection
    - Organize your collection by similarity
    - Identify and tag unknown files
    - Discover forgotten tracks in your library
+   - Create collections for workouts, studying, parties, etc.
+   - Keep track of songs you want to explore later
 
 ## Task Limitations
 

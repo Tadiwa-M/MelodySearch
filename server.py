@@ -4,6 +4,12 @@ import os
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from song_db import save_song_to_db, load_song_db
+from library_manager import (
+    add_song_to_library, get_library_songs, remove_song_from_library,
+    create_collection, get_collections, get_collection_with_songs,
+    update_collection, delete_collection, add_song_to_collection,
+    remove_song_from_collection, get_library_stats
+)
 from flask_session import Session
 import requests
 import tempfile
@@ -1610,6 +1616,219 @@ def calculate_vector_similarity(vec1, vec2):
 
 
 
+
+# ============================================================================
+# LIBRARY MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.route('/library/songs', methods=['GET'])
+def get_library():
+    """Get all songs in user's library"""
+    try:
+        sort_by = request.args.get('sort_by', 'added_at')
+        order = request.args.get('order', 'desc')
+        
+        songs = get_library_songs(sort_by=sort_by, order=order)
+        
+        return jsonify({
+            'success': True,
+            'songs': songs,
+            'count': len(songs)
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/songs', methods=['POST'])
+def add_to_library():
+    """Add a song to user's library"""
+    try:
+        data = request.json
+        
+        if not data or 'title' not in data:
+            return jsonify({'error': 'Song data with title is required'}), 400
+        
+        result = add_song_to_library(data)
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 200  # Already exists, not an error
+    except Exception as e:
+        logging.error(f"Error adding to library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/songs/<song_id>', methods=['DELETE'])
+def remove_from_library(song_id):
+    """Remove a song from library"""
+    try:
+        result = remove_song_from_library(song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error removing from library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections', methods=['GET'])
+def get_all_collections():
+    """Get all collections"""
+    try:
+        collections = get_collections()
+        
+        return jsonify({
+            'success': True,
+            'collections': collections,
+            'count': len(collections)
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting collections: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections', methods=['POST'])
+def create_new_collection():
+    """Create a new collection"""
+    try:
+        data = request.json
+        
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Collection name is required'}), 400
+        
+        name = data['name'].strip()
+        description = data.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'error': 'Collection name cannot be empty'}), 400
+        
+        result = create_collection(name, description)
+        
+        return jsonify(result), 201
+    except Exception as e:
+        logging.error(f"Error creating collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['GET'])
+def get_collection(collection_id):
+    """Get a specific collection with full song details"""
+    try:
+        collection = get_collection_with_songs(collection_id)
+        
+        if collection:
+            return jsonify({
+                'success': True,
+                'collection': collection
+            }), 200
+        else:
+            return jsonify({'error': 'Collection not found'}), 404
+    except Exception as e:
+        logging.error(f"Error getting collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['PUT'])
+def update_collection_metadata(collection_id):
+    """Update collection name or description"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Update data is required'}), 400
+        
+        name = data.get('name')
+        description = data.get('description')
+        
+        if name is not None:
+            name = name.strip()
+            if not name:
+                return jsonify({'error': 'Collection name cannot be empty'}), 400
+        
+        result = update_collection(collection_id, name=name, description=description)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error updating collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['DELETE'])
+def delete_collection_endpoint(collection_id):
+    """Delete a collection"""
+    try:
+        result = delete_collection(collection_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error deleting collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>/songs', methods=['POST'])
+def add_song_to_collection_endpoint(collection_id):
+    """Add a song to a collection"""
+    try:
+        data = request.json
+        
+        if not data or 'song_id' not in data:
+            return jsonify({'error': 'song_id is required'}), 400
+        
+        song_id = data['song_id']
+        result = add_song_to_collection(collection_id, song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404 if 'not found' in result['message'] else 200
+    except Exception as e:
+        logging.error(f"Error adding song to collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>/songs/<song_id>', methods=['DELETE'])
+def remove_song_from_collection_endpoint(collection_id, song_id):
+    """Remove a song from a collection"""
+    try:
+        result = remove_song_from_collection(collection_id, song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error removing song from collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/stats', methods=['GET'])
+def get_library_statistics():
+    """Get library statistics"""
+    try:
+        stats = get_library_stats()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting library stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# SONG IDENTIFICATION ENDPOINT
+# ============================================================================
 
 @app.route('/identify', methods=['POST'])
 def identify_song():
