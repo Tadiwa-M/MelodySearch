@@ -1787,9 +1787,9 @@ def identify_song():
             logging.info(f"Identifying song from: {filename}")
             
             # Identify the song
-            metadata = identifier.identify_song(temp_path, method="audd")
+            metadata = identifier.identify_song(temp_path)
             
-            if not metadata or not metadata.get('identified'):
+            if not metadata:
                 return jsonify({
                     "error": "Could not identify song",
                     "message": "The song could not be identified. Please try with a clearer audio sample or a different part of the song.",
