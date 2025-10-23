@@ -1,10 +1,17 @@
 """
 Library Manager - Handles user's saved songs and collections/playlists
+Enhanced with comprehensive error handling and data validation.
 """
 import json
 import os
 import uuid
+import logging
 from datetime import datetime
+from typing import Optional, Dict, Any, List
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Library storage paths
 LIBRARY_DIR = os.getenv('LIBRARY_PATH', os.path.join('Data', 'library'))
@@ -13,27 +20,134 @@ COLLECTIONS_PATH = os.path.join(LIBRARY_DIR, 'collections.json')
 
 
 def _ensure_library_dir():
-    """Create library directory if it doesn't exist"""
-    os.makedirs(LIBRARY_DIR, exist_ok=True)
+    """Create library directory if it doesn't exist with error handling."""
+    try:
+        os.makedirs(LIBRARY_DIR, exist_ok=True)
+    except PermissionError:
+        logger.error(f"Permission denied creating library directory: {LIBRARY_DIR}")
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create library directory: {e}")
+        raise
 
 
 def _load_json(path, default=None):
-    """Load JSON file with error handling"""
+    """
+    Load JSON file with comprehensive error handling.
+    
+    Args:
+        path: Path to JSON file
+        default: Default value if file doesn't exist or is invalid
+        
+    Returns:
+        Loaded data or default value
+    """
     try:
-        with open(path, 'r') as f:
-            return json.load(f)
+        if not os.path.exists(path):
+            logger.debug(f"File does not exist, using default: {path}")
+            return default if default is not None else []
+        
+        # Check file size
+        file_size = os.path.getsize(path)
+        if file_size == 0:
+            logger.warning(f"File is empty: {path}")
+            return default if default is not None else []
+        
+        if file_size > 100 * 1024 * 1024:  # 100MB
+            logger.warning(f"File is very large ({file_size} bytes): {path}")
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        # Validate data structure
+        if not isinstance(data, (list, dict)):
+            logger.warning(f"Invalid data structure in {path}, using default")
+            return default if default is not None else []
+        
+        return data
+        
     except FileNotFoundError:
+        logger.debug(f"File not found: {path}")
         return default if default is not None else []
-    except json.JSONDecodeError:
-        print(f"Warning: Corrupted file at {path}, returning default")
+    except json.JSONDecodeError as e:
+        logger.error(f"Corrupted JSON file at {path}: {e}")
+        # Backup the corrupted file
+        try:
+            backup_path = f"{path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            if os.path.exists(path):
+                import shutil
+                shutil.copy2(path, backup_path)
+                logger.info(f"Backed up corrupted file to: {backup_path}")
+        except Exception as backup_error:
+            logger.warning(f"Could not backup corrupted file: {backup_error}")
+        
+        return default if default is not None else []
+    except PermissionError:
+        logger.error(f"Permission denied reading file: {path}")
+        return default if default is not None else []
+    except Exception as e:
+        logger.error(f"Unexpected error loading {path}: {e}")
         return default if default is not None else []
 
 
 def _save_json(path, data):
-    """Save data to JSON file"""
-    _ensure_library_dir()
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=2)
+    """
+    Save data to JSON file with error handling and atomic writes.
+    
+    Args:
+        path: Path to JSON file
+        data: Data to save
+    """
+    try:
+        _ensure_library_dir()
+        
+        # Validate data can be serialized
+        try:
+            json_str = json.dumps(data, indent=2)
+        except (TypeError, ValueError) as e:
+            logger.error(f"Data cannot be serialized to JSON: {e}")
+            raise ValueError(f"Invalid data for JSON serialization: {e}")
+        
+        # Use atomic write (write to temp file, then rename)
+        temp_path = f"{path}.tmp"
+        
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(json_str)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+            
+            # Atomic rename
+            if os.path.exists(path):
+                # Backup existing file
+                backup_path = f"{path}.backup"
+                try:
+                    import shutil
+                    shutil.copy2(path, backup_path)
+                except Exception as backup_error:
+                    logger.warning(f"Could not create backup: {backup_error}")
+            
+            os.replace(temp_path, path)
+            logger.debug(f"Successfully saved to {path}")
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+            raise
+            
+    except PermissionError:
+        logger.error(f"Permission denied writing to: {path}")
+        raise
+    except OSError as e:
+        logger.error(f"OS error saving file: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error saving to {path}: {e}")
+        raise
 
 
 # ============================================================================
@@ -42,7 +156,7 @@ def _save_json(path, data):
 
 def add_song_to_library(song_data):
     """
-    Add a song to the user's library
+    Add a song to the user's library with comprehensive validation.
     
     Args:
         song_data: dict containing song information (title, artist, audio_features, etc.)
@@ -50,49 +164,108 @@ def add_song_to_library(song_data):
     Returns:
         dict with success status and song_id
     """
-    library_songs = _load_json(LIBRARY_SONGS_PATH)
+    # Validate input
+    if not song_data or not isinstance(song_data, dict):
+        logger.error("Invalid song_data: must be a non-empty dictionary")
+        return {
+            'success': False,
+            'message': 'Invalid song data',
+            'error': 'song_data must be a dictionary'
+        }
     
-    # Generate unique ID for the song
-    song_id = str(uuid.uuid4())
+    # Validate required fields
+    title = song_data.get('title')
+    if not title or not str(title).strip():
+        logger.error("Song title is required")
+        return {
+            'success': False,
+            'message': 'Song title is required',
+            'error': 'missing_title'
+        }
     
-    # Create library entry
-    library_entry = {
-        'id': song_id,
-        'title': song_data.get('title', 'Unknown'),
-        'artist': song_data.get('artist', 'Unknown'),
-        'audio_features': song_data.get('audio_features', {}),
-        'spotify_metadata': song_data.get('spotify_metadata', {}),
-        'spotify_id': song_data.get('spotify_id') or song_data.get('spotify_metadata', {}).get('spotify_id'),
-        'added_at': datetime.utcnow().isoformat(),
-        'source': song_data.get('source', 'manual')  # 'manual', 'search_result', 'upload'
-    }
-    
-    # Check for duplicates (by title and artist or spotify_id)
-    spotify_id = library_entry.get('spotify_id')
-    for existing_song in library_songs:
-        if spotify_id and existing_song.get('spotify_id') == spotify_id:
+    try:
+        library_songs = _load_json(LIBRARY_SONGS_PATH)
+        
+        # Ensure library_songs is a list
+        if not isinstance(library_songs, list):
+            logger.warning("Library songs data is not a list, initializing new list")
+            library_songs = []
+        
+        # Generate unique ID for the song
+        song_id = str(uuid.uuid4())
+        
+        # Sanitize and validate title and artist
+        title = str(title).strip()[:500]  # Limit length
+        artist = str(song_data.get('artist', 'Unknown')).strip()[:500]
+        
+        # Create library entry with safe defaults
+        library_entry = {
+            'id': song_id,
+            'title': title,
+            'artist': artist,
+            'audio_features': song_data.get('audio_features', {}),
+            'spotify_metadata': song_data.get('spotify_metadata', {}),
+            'spotify_id': song_data.get('spotify_id') or song_data.get('spotify_metadata', {}).get('spotify_id'),
+            'added_at': datetime.utcnow().isoformat(),
+            'source': song_data.get('source', 'manual')  # 'manual', 'search_result', 'upload'
+        }
+        
+        # Check for duplicates (by title and artist or spotify_id)
+        spotify_id = library_entry.get('spotify_id')
+        for existing_song in library_songs:
+            if not isinstance(existing_song, dict):
+                continue
+                
+            # Check by Spotify ID if available
+            if spotify_id and existing_song.get('spotify_id') == spotify_id:
+                logger.info(f"Song already in library (by Spotify ID): {title}")
+                return {
+                    'success': False,
+                    'message': 'Song already in library',
+                    'song_id': existing_song.get('id'),
+                    'duplicate': True
+                }
+            
+            # Check by title and artist
+            if (existing_song.get('title') == title and 
+                existing_song.get('artist') == artist):
+                logger.info(f"Song already in library (by title/artist): {title} by {artist}")
+                return {
+                    'success': False,
+                    'message': 'Song already in library',
+                    'song_id': existing_song.get('id'),
+                    'duplicate': True
+                }
+        
+        # Add to library
+        library_songs.append(library_entry)
+        
+        # Save with error handling
+        try:
+            _save_json(LIBRARY_SONGS_PATH, library_songs)
+        except Exception as e:
+            logger.error(f"Failed to save library: {e}")
             return {
                 'success': False,
-                'message': 'Song already in library',
-                'song_id': existing_song['id']
+                'message': 'Failed to save to library',
+                'error': str(e)
             }
-        if (existing_song.get('title') == library_entry['title'] and 
-            existing_song.get('artist') == library_entry['artist']):
-            return {
-                'success': False,
-                'message': 'Song already in library',
-                'song_id': existing_song['id']
-            }
-    
-    # Add to library
-    library_songs.append(library_entry)
-    _save_json(LIBRARY_SONGS_PATH, library_songs)
-    
-    return {
-        'success': True,
-        'message': 'Song added to library',
-        'song_id': song_id
-    }
+        
+        logger.info(f"Added song to library: {title} by {artist} (ID: {song_id})")
+        
+        return {
+            'success': True,
+            'message': 'Song added to library',
+            'song_id': song_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Unexpected error adding song to library: {e}", exc_info=True)
+        return {
+            'success': False,
+            'message': 'Failed to add song to library',
+            'error': str(e)
+        }
 
 
 def get_library_songs(sort_by='added_at', order='desc'):
