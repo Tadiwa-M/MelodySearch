@@ -23,7 +23,6 @@ from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
 import re
-from song_identifier import SongIdentifier
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
@@ -1112,78 +1111,6 @@ def extract_real_audio_features(audio_file_path):
     except Exception as e:
         logging.error(f"Real audio analysis failed: {e}")
         return None
-
-
-@app.route('/identify', methods=['POST'])
-def identify_song():
-    """
-    Identify a song from uploaded audio using acoustic fingerprinting.
-    Returns metadata including title, artist, album, and cover art.
-    """
-    try:
-        if 'audio_file' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
-
-        file = request.files['audio_file']
-        if file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
-
-        if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, OGG, or WEBM"}), 400
-
-        # Save uploaded file temporarily
-        filename = secure_filename(file.filename)
-        with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
-            file.save(temp_file.name)
-            temp_path = temp_file.name
-
-        try:
-            # Initialize song identifier
-            identifier = SongIdentifier()
-            
-            # Get Spotify client for enriching metadata
-            sp = get_spotify_client()
-            
-            # Identify the song with Spotify fallback
-            metadata = identifier.identify_with_spotify_fallback(temp_path, sp)
-            
-            if not metadata:
-                return jsonify({
-                    "error": "Could not identify the song. Please try with a clearer audio sample."
-                }), 404
-            
-            # Format response
-            response = {
-                "message": "Song identified successfully",
-                "song": {
-                    "title": metadata.get('title', 'Unknown'),
-                    "artist": metadata.get('artist', 'Unknown'),
-                    "album": metadata.get('album', 'Unknown'),
-                    "cover_art_url": metadata.get('cover_art_url'),
-                    "cover_art_thumbnail": metadata.get('cover_art_thumbnail'),
-                    "release_date": metadata.get('release_date'),
-                    "identification_score": metadata.get('identification_score', 0),
-                    "spotify_id": metadata.get('spotify_id'),
-                    "spotify_url": metadata.get('spotify_url'),
-                    "preview_url": metadata.get('preview_url'),
-                    "popularity": metadata.get('popularity'),
-                    "isrc": metadata.get('isrc'),
-                    "tags": metadata.get('tags', []),
-                    "musicbrainz_url": metadata.get('musicbrainz_url')
-                },
-                "identification_source": metadata.get('identification_source', 'acoustid')
-            }
-            
-            return jsonify(response), 200
-
-        finally:
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
-
-    except Exception as e:
-        logging.error(f"Song identification failed: {e}")
-        return jsonify({"error": f"Identification failed: {str(e)}"}), 500
 
 
 # ADD NEW UPLOAD ROUTE
