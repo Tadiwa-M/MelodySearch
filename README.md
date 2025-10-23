@@ -20,7 +20,8 @@
    - Discover music across genres using mathematical similarity algorithms
    - Get recommendations based on audio features and metadata
 
-3. **Multiple Analysis Methods**
+2. **Multiple Analysis Methods**
+   - **Song Identification**: Uses audio fingerprinting to identify unknown songs
    - **Metadata-Based Analysis**: Uses genre, artist popularity, release year, tempo, and other metadata
    - **Audio Feature Analysis**: Extracts tempo, energy, valence, danceability, and spectral features
    - **Real Audio File Upload**: Analyze your own audio files (MP3, WAV, FLAC, M4A, OGG)
@@ -65,6 +66,7 @@
 ```
 MelodySearch/
 ├── server.py                          # Flask web server with REST API
+├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── main.py                           # Command-line interface
 ├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── feature_extraction.py             # Audio feature extraction using librosa
@@ -211,10 +213,44 @@ Response:
     "spotify_url": "https://open.spotify.com/track/...",
     "musicbrainz_url": "https://musicbrainz.org/recording/..."
   }
+```
+
+#### Find similar songs (by title and artist) - RECOMMENDED
+```bash
+POST /similar-songs
+Content-Type: application/json
+
+{
+  "title": "Blinding Lights",
+  "artist": "The Weeknd"
 }
 ```
 
-#### Search for a song and get recommendations
+**Response:**
+```json
+{
+  "original_song": {
+    "title": "Blinding Lights",
+    "artist": "The Weeknd",
+    "spotify_id": "0VjIjW4GlUZAMYd2vXMi3b",
+    "popularity": 95,
+    "genres": ["canadian pop", "pop"],
+    "audio_features": {...}
+  },
+  "similar_songs": [
+    {
+      "title": "Save Your Tears",
+      "artist": "The Weeknd",
+      "similarity_score": 0.89,
+      "similarity_explanation": "Similar musical genres (match: 95%)",
+      "audio_features": {...}
+    }
+  ],
+  "total_matches": 10
+}
+```
+
+#### Search for a song and get recommendations (by name only)
 ```bash
 POST /search
 Content-Type: application/json
@@ -224,13 +260,15 @@ Content-Type: application/json
 }
 ```
 
-#### Upload and analyze audio file
+#### Upload and analyze audio file for similarity
 ```bash
 POST /upload
 Content-Type: multipart/form-data
 
 audio_file: <your audio file>
 ```
+
+**For complete API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md)**
 
 ## Technical Details 🔧
 
@@ -323,7 +361,7 @@ The system includes comprehensive genre mappings for:
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
 - **scipy**: Scientific computing
-- **requests**: HTTP library for API calls
+- **requests**: HTTP library for API calls (also used for AudD API)
 
 ### System Requirements
 - **chromaprint** (`fpcalc`): Audio fingerprinting tool
@@ -332,6 +370,11 @@ The system includes comprehensive genre mappings for:
   - Windows: Download from https://acoustid.org/chromaprint
 
 See `requirements.txt` for exact versions.
+
+### External APIs
+
+- **Spotify API**: For metadata, search, and recommendations (required)
+- **AudD API**: For song identification (optional, free tier: 50 requests/day)
 
 ## Features in Detail 🎼
 
