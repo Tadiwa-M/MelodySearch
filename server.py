@@ -4,11 +4,18 @@ import os
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 from song_db import save_song_to_db, load_song_db
+from library_manager import (
+    add_song_to_library, get_library_songs, remove_song_from_library,
+    create_collection, get_collections, get_collection_with_songs,
+    update_collection, delete_collection, add_song_to_collection,
+    remove_song_from_collection, get_library_stats
+)
 from flask_session import Session
 import requests
 import tempfile
 from feature_extraction import HybridFeatureExtractor
 from metadata_similarity_engine import MetadataSimilarityEngine
+from song_identifier import SongIdentifier
 import random
 import time
 import json
@@ -46,23 +53,20 @@ def add_security_headers(response):
     return response
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg'}
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg', 'webm'}
 
 # Security: Configure logging level based on environment
 log_level = logging.DEBUG if os.getenv('FLASK_ENV') == 'development' else logging.INFO
 logging.basicConfig(level=log_level)
 
-# Spotify API credentials - MUST be set via environment variables for security
+# Spotify API credentials and redirect URI
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/callback')
 
-# Security: Validate that required credentials are set
+# Validate required credentials
 if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
-    logging.error("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables!")
-    # Allow startup but functionality will be limited
-    SPOTIFY_CLIENT_ID = SPOTIFY_CLIENT_ID or 'NOT_SET'
-    SPOTIFY_CLIENT_SECRET = SPOTIFY_CLIENT_SECRET or 'NOT_SET'
+    raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables must be set")
 SCOPE = 'user-read-private user-read-email'
 CACHE_PATH = '.cache'
 
@@ -305,6 +309,15 @@ def search_song():
         
         # Security: Basic sanitization - remove potentially dangerous characters
         song_name = song_name.strip()
+
+        # Input validation and sanitization
+        song_name = song_name.strip()
+        if len(song_name) > 200:
+            return jsonify({"error": "Song name too long (max 200 characters)"}), 400
+        
+        # Prevent injection attacks - allow apostrophes but block dangerous HTML/script characters
+        if re.search(r'[<>\"\\]', song_name):
+            return jsonify({"error": "Invalid characters in song name"}), 400
 
         logging.debug(f"Searching for song: {song_name}")
 
@@ -1156,6 +1169,189 @@ def extract_real_audio_features(audio_file_path):
 
 
 # ADD NEW UPLOAD ROUTE
+@app.route('/similar-songs', methods=['POST'])
+def get_similar_songs():
+    """
+    Generate a list of songs similar to a given song (title and artist).
+    Returns metadata for each similar song.
+    
+    Request body:
+    {
+        "title": "Song Title",
+        "artist": "Artist Name"
+    }
+    
+    Response:
+    {
+        "original_song": {...},
+        "similar_songs": [...],
+        "total_matches": int
+    }
+    """
+    session['is_authenticated'] = True  # Temp override for non-auth setups
+    if not session.get('is_authenticated'):
+        return redirect('/login')
+
+    try:
+        sp = get_spotify_client()
+        data = request.json
+        
+        # Extract and validate input
+        title = data.get('title', '').strip()
+        artist = data.get('artist', '').strip()
+        
+        if not title:
+            return jsonify({"error": "Song title is required"}), 400
+        
+        if not artist:
+            return jsonify({"error": "Artist name is required"}), 400
+        
+        # Input validation - check length
+        if len(title) > 200:
+            return jsonify({"error": "Song title too long (max 200 characters)"}), 400
+        
+        if len(artist) > 200:
+            return jsonify({"error": "Artist name too long (max 200 characters)"}), 400
+        
+        # Prevent injection attacks
+        if re.search(r'[<>\"\\]', title) or re.search(r'[<>\"\\]', artist):
+            return jsonify({"error": "Invalid characters in song title or artist name"}), 400
+        
+        logging.debug(f"Searching for song: '{title}' by '{artist}'")
+        
+        # Search for the song using both title and artist for better accuracy
+        search_query = f"track:{title} artist:{artist}"
+        results = sp.search(q=search_query, type='track', limit=5)
+        
+        if not results['tracks']['items']:
+            # Fallback: try without strict formatting
+            search_query = f"{title} {artist}"
+            results = sp.search(q=search_query, type='track', limit=5)
+            
+            if not results['tracks']['items']:
+                return jsonify({"error": "Song not found"}), 404
+        
+        # Find the best match from results
+        track = results['tracks']['items'][0]
+        
+        # Use metadata-based similarity engine
+        similarity_engine = MetadataSimilarityEngine(sp)
+        metadata_features = similarity_engine.extract_comprehensive_metadata(
+            track['id'],
+            track
+        )
+        
+        logging.debug(f"Found song: '{track['name']}' by '{track['artists'][0]['name']}'")
+        logging.debug(f"Metadata completeness: {metadata_features.get('feature_completeness', 0):.2%}")
+        
+        # Convert metadata to audio features for response
+        pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        
+        # Structure the original song data
+        original_song = {
+            "title": track['name'],
+            "artist": track['artists'][0]['name'],
+            "spotify_id": track['id'],
+            "popularity": track['popularity'],
+            "duration_ms": track['duration_ms'],
+            "explicit": track['explicit'],
+            "preview_url": track.get('preview_url'),
+            "album": track['album']['name'],
+            "release_date": track['album']['release_date'],
+            "genres": metadata_features.get('artist_genres', []),
+            "audio_features": pseudo_audio_features
+        }
+        
+        # Find similar songs
+        logging.debug("Finding similar songs...")
+        candidate_recommendations = find_metadata_based_candidates(sp, track, metadata_features, limit=50)
+        
+        # Enhance candidates with metadata
+        enhanced_candidates = []
+        for candidate in candidate_recommendations:
+            try:
+                if candidate.get('spotify_id'):
+                    candidate_metadata = similarity_engine.extract_comprehensive_metadata(
+                        candidate['spotify_id']
+                    )
+                    
+                    enhanced_candidate = {
+                        "title": candidate.get('title', 'Unknown'),
+                        "artist": candidate.get('artist', 'Unknown'),
+                        "metadata_features": candidate_metadata,
+                        "spotify_id": candidate.get('spotify_id'),
+                        "popularity": candidate.get('popularity'),
+                        "preview_url": candidate.get('preview_url')
+                    }
+                    enhanced_candidates.append(enhanced_candidate)
+                    
+            except Exception as e:
+                logging.warning(f"Failed to analyze candidate '{candidate.get('title', 'Unknown')}': {e}")
+                continue
+        
+        logging.debug(f"Enhanced {len(enhanced_candidates)} candidates with metadata")
+        
+        # Calculate similarities
+        similar_songs = []
+        if enhanced_candidates:
+            try:
+                mathematical_matches = similarity_engine.find_metadata_similarities(
+                    metadata_features,
+                    enhanced_candidates,
+                    top_n=10
+                )
+                
+                logging.debug(f"Found {len(mathematical_matches)} similar songs")
+                
+                # Format results for response
+                for title_match, similarity, breakdown in mathematical_matches:
+                    original_candidate = next(
+                        (rec for rec in enhanced_candidates if rec['title'] == title_match),
+                        {}
+                    )
+                    
+                    candidate_features = original_candidate.get('metadata_features', {})
+                    candidate_pseudo_features = convert_metadata_to_audio_features(candidate_features)
+                    
+                    # Get full track info for additional metadata
+                    track_id = original_candidate.get('spotify_id')
+                    track_info = sp.track(track_id) if track_id else {}
+                    
+                    similar_songs.append({
+                        "title": title_match,
+                        "artist": original_candidate.get('artist', 'Unknown'),
+                        "spotify_id": original_candidate.get('spotify_id'),
+                        "popularity": original_candidate.get('popularity', 0),
+                        "duration_ms": candidate_features.get('duration_ms', 0),
+                        "explicit": candidate_features.get('explicit', False),
+                        "preview_url": original_candidate.get('preview_url'),
+                        "album": track_info.get('album', {}).get('name', 'Unknown'),
+                        "release_date": track_info.get('album', {}).get('release_date', 'Unknown'),
+                        "genres": candidate_features.get('artist_genres', []),
+                        "similarity_score": similarity,
+                        "similarity_explanation": similarity_engine.explain_metadata_similarity(breakdown),
+                        "audio_features": candidate_pseudo_features
+                    })
+                    
+            except Exception as e:
+                logging.error(f"Similarity calculation failed: {e}")
+                return jsonify({"error": "Failed to calculate similarities"}), 500
+        
+        return jsonify({
+            "original_song": original_song,
+            "similar_songs": similar_songs,
+            "total_matches": len(similar_songs),
+            "analysis_method": "metadata_based"
+        }), 200
+        
+    except spotipy.SpotifyException as e:
+        logging.error(f"Spotify API error: {e}")
+        return jsonify({"error": f"Spotify API error: {str(e)}"}), 403
+    except Exception as e:
+        logging.error(f"Unexpected error in /similar-songs: {e}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
 @app.route('/upload', methods=['POST'])
 def upload_audio():
     """Handle audio file uploads for real analysis"""
@@ -1172,7 +1368,7 @@ def upload_audio():
             return jsonify({"error": "Invalid filename"}), 400
             
         if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, OGG, or WEBM"}), 400
 
         # Security: Limit file size (already configured at app level, but double-check)
         file.seek(0, os.SEEK_END)
@@ -1417,6 +1613,331 @@ def calculate_vector_similarity(vec1, vec2):
         return 0.0
 
 
+
+
+# ============================================================================
+# LIBRARY MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@app.route('/library/songs', methods=['GET'])
+def get_library():
+    """Get all songs in user's library"""
+    try:
+        sort_by = request.args.get('sort_by', 'added_at')
+        order = request.args.get('order', 'desc')
+        
+        songs = get_library_songs(sort_by=sort_by, order=order)
+        
+        return jsonify({
+            'success': True,
+            'songs': songs,
+            'count': len(songs)
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/songs', methods=['POST'])
+def add_to_library():
+    """Add a song to user's library"""
+    try:
+        data = request.json
+        
+        if not data or 'title' not in data:
+            return jsonify({'error': 'Song data with title is required'}), 400
+        
+        result = add_song_to_library(data)
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 200  # Already exists, not an error
+    except Exception as e:
+        logging.error(f"Error adding to library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/songs/<song_id>', methods=['DELETE'])
+def remove_from_library(song_id):
+    """Remove a song from library"""
+    try:
+        result = remove_song_from_library(song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error removing from library: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections', methods=['GET'])
+def get_all_collections():
+    """Get all collections"""
+    try:
+        collections = get_collections()
+        
+        return jsonify({
+            'success': True,
+            'collections': collections,
+            'count': len(collections)
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting collections: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections', methods=['POST'])
+def create_new_collection():
+    """Create a new collection"""
+    try:
+        data = request.json
+        
+        if not data or 'name' not in data:
+            return jsonify({'error': 'Collection name is required'}), 400
+        
+        name = data['name'].strip()
+        description = data.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'error': 'Collection name cannot be empty'}), 400
+        
+        result = create_collection(name, description)
+        
+        return jsonify(result), 201
+    except Exception as e:
+        logging.error(f"Error creating collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['GET'])
+def get_collection(collection_id):
+    """Get a specific collection with full song details"""
+    try:
+        collection = get_collection_with_songs(collection_id)
+        
+        if collection:
+            return jsonify({
+                'success': True,
+                'collection': collection
+            }), 200
+        else:
+            return jsonify({'error': 'Collection not found'}), 404
+    except Exception as e:
+        logging.error(f"Error getting collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['PUT'])
+def update_collection_metadata(collection_id):
+    """Update collection name or description"""
+    try:
+        data = request.json
+        
+        if not data:
+            return jsonify({'error': 'Update data is required'}), 400
+        
+        name = data.get('name')
+        description = data.get('description')
+        
+        if name is not None:
+            name = name.strip()
+            if not name:
+                return jsonify({'error': 'Collection name cannot be empty'}), 400
+        
+        result = update_collection(collection_id, name=name, description=description)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error updating collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>', methods=['DELETE'])
+def delete_collection_endpoint(collection_id):
+    """Delete a collection"""
+    try:
+        result = delete_collection(collection_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error deleting collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>/songs', methods=['POST'])
+def add_song_to_collection_endpoint(collection_id):
+    """Add a song to a collection"""
+    try:
+        data = request.json
+        
+        if not data or 'song_id' not in data:
+            return jsonify({'error': 'song_id is required'}), 400
+        
+        song_id = data['song_id']
+        result = add_song_to_collection(collection_id, song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404 if 'not found' in result['message'] else 200
+    except Exception as e:
+        logging.error(f"Error adding song to collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/collections/<collection_id>/songs/<song_id>', methods=['DELETE'])
+def remove_song_from_collection_endpoint(collection_id, song_id):
+    """Remove a song from a collection"""
+    try:
+        result = remove_song_from_collection(collection_id, song_id)
+        
+        if result['success']:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 404
+    except Exception as e:
+        logging.error(f"Error removing song from collection: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/library/stats', methods=['GET'])
+def get_library_statistics():
+    """Get library statistics"""
+    try:
+        stats = get_library_stats()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        }), 200
+    except Exception as e:
+        logging.error(f"Error getting library stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# SONG IDENTIFICATION ENDPOINT
+# ============================================================================
+
+@app.route('/identify', methods=['POST'])
+def identify_song():
+    """
+    Identify a song from user-provided audio file.
+    Returns metadata including title, artist, album, and cover art.
+    """
+    try:
+        if 'audio_file' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+
+        file = request.files['audio_file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+
+        try:
+            # Initialize song identifier
+            identifier = SongIdentifier()
+            
+            logging.info(f"Identifying song from: {filename}")
+            
+            # Identify the song
+            metadata = identifier.identify_song(temp_path, method="audd")
+            
+            if not metadata or not metadata.get('identified'):
+                return jsonify({
+                    "error": "Could not identify song",
+                    "message": "The song could not be identified. Please try with a clearer audio sample or a different part of the song.",
+                    "suggestions": [
+                        "Ensure the audio quality is good",
+                        "Try uploading a 15-30 second clip from the chorus or most recognizable part",
+                        "Reduce background noise if possible"
+                    ]
+                }), 404
+            
+            # Enrich metadata with Spotify data if possible
+            sp = get_spotify_client()
+            enriched_metadata = identifier.enrich_metadata_from_spotify(metadata, sp)
+            
+            # Save to database
+            song_data = {
+                "title": enriched_metadata.get('title'),
+                "artist": enriched_metadata.get('artist'),
+                "audio_features": {},  # Can be populated later if needed
+                "spotify_metadata": {
+                    "album": enriched_metadata.get('album'),
+                    "album_art": enriched_metadata.get('album_art'),
+                    "cover_art": enriched_metadata.get('cover_art'),
+                    "release_date": enriched_metadata.get('release_date'),
+                    "spotify_id": enriched_metadata.get('spotify_id'),
+                    "spotify_url": enriched_metadata.get('spotify_url'),
+                    "preview_url": enriched_metadata.get('preview_url'),
+                    "popularity": enriched_metadata.get('popularity'),
+                    "duration_ms": enriched_metadata.get('duration_ms'),
+                    "explicit": enriched_metadata.get('explicit'),
+                    "genres": enriched_metadata.get('artist_genres', []),
+                    "label": enriched_metadata.get('label'),
+                }
+            }
+            save_song_to_db(song_data)
+            
+            return jsonify({
+                "message": "Song identified successfully",
+                "identified": True,
+                "song": {
+                    "title": enriched_metadata.get('title'),
+                    "artist": enriched_metadata.get('artist'),
+                    "album": enriched_metadata.get('album'),
+                    "album_art": enriched_metadata.get('album_art'),
+                    "cover_art": enriched_metadata.get('cover_art'),
+                    "release_date": enriched_metadata.get('release_date'),
+                    "label": enriched_metadata.get('label'),
+                    "spotify_id": enriched_metadata.get('spotify_id'),
+                    "spotify_url": enriched_metadata.get('spotify_url'),
+                    "preview_url": enriched_metadata.get('preview_url'),
+                    "popularity": enriched_metadata.get('popularity'),
+                    "duration_ms": enriched_metadata.get('duration_ms'),
+                    "explicit": enriched_metadata.get('explicit'),
+                    "genres": enriched_metadata.get('artist_genres', []),
+                    "album_details": {
+                        "type": enriched_metadata.get('album_type'),
+                        "total_tracks": enriched_metadata.get('album_total_tracks'),
+                        "release_date": enriched_metadata.get('album_release_date'),
+                        "label": enriched_metadata.get('album_label'),
+                    },
+                    "identification_metadata": {
+                        "source": enriched_metadata.get('identification_source'),
+                        "confidence_score": enriched_metadata.get('score'),
+                        "timecode": enriched_metadata.get('timecode'),
+                        "spotify_enriched": enriched_metadata.get('spotify_enriched', False)
+                    }
+                }
+            }), 200
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    except Exception as e:
+        logging.error(f"Song identification failed: {e}")
+        return jsonify({"error": f"Identification failed: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

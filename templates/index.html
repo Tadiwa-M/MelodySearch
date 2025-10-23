@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MelodySearch - Mathematical Music Discovery</title>
+    <title>MelodySearch - Discover New Music Everyday</title>
     <style>
         * {
             margin: 0;
@@ -132,29 +132,38 @@
             margin-bottom: 24px;
         }
 
-        .file-upload-area {
-            border: 2px dashed #2a2a2a;
+        /* Recording Area */
+        .recording-area {
+            border: 2px solid #2a2a2a;
             border-radius: 12px;
             padding: 40px;
             text-align: center;
-            cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 20px;
-        }
-
-        .file-upload-area:hover {
-            border-color: #0066cc;
             background: #0a0a0a;
         }
 
-        .file-upload-area.dragover {
-            border-color: #0066cc;
-            background: rgba(0, 102, 204, 0.1);
+        .recording-area.recording {
+            border-color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+            animation: pulse 1.5s ease-in-out infinite;
         }
 
-        .file-upload-area.file-selected {
-            background: rgba(40, 167, 69, 0.1);
+        .recording-area.has-recording {
             border-color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .recording-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .upload-icon {
@@ -162,7 +171,7 @@
             margin-bottom: 16px;
         }
 
-        .upload-placeholder p {
+        .recording-placeholder p {
             color: #cccccc;
             margin-bottom: 8px;
         }
@@ -499,75 +508,503 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3a3a3a;
         }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #888888;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover {
+            color: #ffffff;
+        }
+
+        .nav-tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Library Styles */
+        .library-section {
+            background: #111111;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .library-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .library-stats {
+            color: #888888;
+            font-size: 0.9rem;
+        }
+
+        .library-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: #0052a3;
+        }
+
+        .action-btn.secondary {
+            background: #2a2a2a;
+        }
+
+        .action-btn.secondary:hover {
+            background: #3a3a3a;
+        }
+
+        .action-btn.danger {
+            background: #dc3545;
+        }
+
+        .action-btn.danger:hover {
+            background: #c82333;
+        }
+
+        .library-song-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .library-song-info h4 {
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .library-song-info p {
+            color: #888888;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+
+        .library-song-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: none;
+            border-radius: 6px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: #3a3a3a;
+        }
+
+        .icon-btn.save {
+            background: #28a745;
+        }
+
+        .icon-btn.save:hover {
+            background: #218838;
+        }
+
+        .icon-btn.saved {
+            background: #28a745;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .collection-card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .collection-card:hover {
+            border-color: #0066cc;
+            background: #151515;
+        }
+
+        .collection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .collection-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .collection-description {
+            color: #888888;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .collection-meta {
+            color: #666666;
+            font-size: 0.85rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888888;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #111111;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #cccccc;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .collection-songs-list {
+            margin-top: 16px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>MelodySearch</h1>
-            <p>Mathematical cross-genre music discovery through audio feature analysis</p>
+            <p>Melody Search: Discover New Music Everyday</p>
         </div>
 
-        <div class="search-section">
-            <h2>Search Spotify Catalog</h2>
-            <p>Find similar songs using metadata analysis</p>
-            <form class="search-form" id="searchForm">
-                <input
-                    type="text"
-                    class="search-input"
-                    id="songInput"
-                    placeholder="Enter song name or artist - song title"
-                    required
-                >
-                <button type="submit" class="search-btn" id="searchBtn">
-                    Search & Analyze
-                </button>
-            </form>
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="search">Search</button>
+            <button class="nav-tab" data-tab="library">My Library</button>
+            <button class="nav-tab" data-tab="collections">Collections</button>
         </div>
 
-        <div class="upload-section">
-            <h2>Upload Your Own Track</h2>
-            <p>Get precise analysis by uploading your own audio file</p>
+        <!-- Search Tab Content -->
+        <div class="tab-content active" data-tab-content="search">
+            <div class="search-section">
+                <h2>Search Spotify Catalog</h2>
+                <p>Find similar songs using metadata analysis</p>
+                <form class="search-form" id="searchForm">
+                    <input
+                        type="text"
+                        class="search-input"
+                        id="songInput"
+                        placeholder="Enter song name or artist - song title"
+                        required
+                    >
+                    <button type="submit" class="search-btn" id="searchBtn">
+                        Search & Analyze
+                    </button>
+                </form>
+            </div>
 
-            <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
-                <div class="file-upload-area" id="fileUploadArea">
-                    <input type="file" id="audioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
-                    <div class="upload-placeholder">
-                        <div class="upload-icon">📁</div>
-                        <p>Drop audio file here or click to browse</p>
-                        <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG</p>
+            <div class="upload-section">
+                <h2>🎙️ Record & Analyze Audio</h2>
+                <p>Record live audio to identify songs or analyze similar tracks</p>
+
+                <div class="recording-area" id="recordingArea">
+                    <div class="recording-placeholder">
+                        <div class="upload-icon" id="recordingIcon">🎙️</div>
+                        <p id="recordingStatus">Ready to record</p>
+                        <p class="upload-formats" id="recordingTimer"></p>
                     </div>
                 </div>
-                <button type="submit" class="upload-btn" id="uploadBtn" disabled>
-                    🎵 Analyze My Track
-                </button>
-            </form>
+                
+                <div style="display: flex; gap: 12px; margin-top: 20px;">
+                    <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #dc3545;">
+                        ⏺️ Start Recording
+                    </button>
+                    <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #6c757d;" disabled>
+                        ⏹️ Stop Recording
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
+                    <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #0066cc;" disabled>
+                        🔍 Analyze Recording
+                    </button>
+                    <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled>
+                        🎵 Identify Song
+                    </button>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing audio features...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="analysis-section" id="analysisSection">
+                <div class="song-info" id="songInfo">
+                    <!-- Song info will be populated here -->
+                </div>
+
+                <div class="analysis-methods" id="analysisMethods">
+                    <!-- Analysis method badges will appear here -->
+                </div>
+
+                <div class="recommendations" id="recommendations">
+                    <h2>Similar Songs</h2>
+                    <div id="recommendationsList">
+                        <!-- Recommendations will be populated here -->
+                    </div>
+                </div>
+
+                <div class="feature-analysis" id="featureAnalysis">
+                    <!-- Feature analysis will be populated here -->
+                </div>
+            </div>
         </div>
 
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing audio features...</p>
+        <!-- Library Tab Content -->
+        <div class="tab-content" data-tab-content="library">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>My Library</h2>
+                        <p class="library-stats" id="libraryStats">Loading...</p>
+                    </div>
+                </div>
+                <div id="librarySongsList">
+                    <!-- Library songs will be populated here -->
+                </div>
+            </div>
         </div>
 
-        <div class="error" id="error"></div>
-
-        <div class="analysis-section" id="analysisSection">
-            <div class="song-info" id="songInfo">
-                <!-- Song info will be populated here -->
+        <!-- Collections Tab Content -->
+        <div class="tab-content" data-tab-content="collections">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>Collections</h2>
+                        <p class="library-stats" id="collectionsStats">Loading...</p>
+                    </div>
+                    <button class="action-btn" id="createCollectionBtn">
+                        ➕ New Collection
+                    </button>
+                </div>
+                <div id="collectionsList">
+                    <!-- Collections will be populated here -->
+                </div>
             </div>
+        </div>
 
-            <div class="analysis-methods" id="analysisMethods">
-                <!-- Analysis method badges will appear here -->
+        <!-- Create Collection Modal -->
+        <div class="modal" id="createCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create Collection</h3>
+                    <button class="modal-close" onclick="closeModal('createCollectionModal')">×</button>
+                </div>
+                <form id="createCollectionForm">
+                    <div class="form-group">
+                        <label for="collectionName">Collection Name *</label>
+                        <input type="text" id="collectionName" required placeholder="e.g., Chill Vibes, Workout Mix">
+                    </div>
+                    <div class="form-group">
+                        <label for="collectionDescription">Description</label>
+                        <textarea id="collectionDescription" placeholder="Optional description..."></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="action-btn secondary" onclick="closeModal('createCollectionModal')">Cancel</button>
+                        <button type="submit" class="action-btn">Create</button>
+                    </div>
+                </form>
             </div>
+        </div>
 
-            <div class="feature-analysis" id="featureAnalysis">
-                <!-- Feature analysis will be populated here -->
+        <!-- View Collection Modal -->
+        <div class="modal" id="viewCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="viewCollectionName">Collection</h3>
+                    <button class="modal-close" onclick="closeModal('viewCollectionModal')">×</button>
+                </div>
+                <p id="viewCollectionDescription" style="color: #888888; margin-bottom: 20px;"></p>
+                <div class="collection-songs-list" id="viewCollectionSongs">
+                    <!-- Collection songs will be populated here -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn danger" id="deleteCollectionBtn">Delete Collection</button>
+                    <button type="button" class="action-btn secondary" onclick="closeModal('viewCollectionModal')">Close</button>
+                </div>
             </div>
+        </div>
 
-            <div class="recommendations" id="recommendations">
-                <h2>Similar Songs</h2>
-                <div id="recommendationsList">
-                    <!-- Recommendations will be populated here -->
+        <!-- Add to Collection Modal -->
+        <div class="modal" id="addToCollectionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add to Collection</h3>
+                    <button class="modal-close" onclick="closeModal('addToCollectionModal')">×</button>
+                </div>
+                <div id="addToCollectionList">
+                    <!-- Collections list will be populated here -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="action-btn secondary" onclick="closeModal('addToCollectionModal')">Cancel</button>
                 </div>
             </div>
         </div>
@@ -577,9 +1014,14 @@
         class MelodySearchApp {
             constructor() {
                 this.essentia = null;
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.recordedBlob = null;
+                this.recordingTimer = null;
+                this.recordingStartTime = 0;
                 this.initializeEssentia();
                 this.setupEventListeners();
-                this.setupUpload();
+                this.setupRecording();
             }
 
             async initializeEssentia() {
@@ -603,134 +1045,123 @@
                 });
             }
 
-            setupUpload() {
-                const uploadArea = document.getElementById('fileUploadArea');
-                const fileInput = document.getElementById('audioFile');
-                const uploadBtn = document.getElementById('uploadBtn');
-                const uploadForm = document.getElementById('uploadForm');
+            setupRecording() {
+                const recordBtn = document.getElementById('recordBtn');
+                const stopRecordBtn = document.getElementById('stopRecordBtn');
+                const analyzeBtn = document.getElementById('analyzeRecordingBtn');
+                const identifyBtn = document.getElementById('identifyRecordingBtn');
+                const recordingArea = document.getElementById('recordingArea');
+                const recordingStatus = document.getElementById('recordingStatus');
+                const recordingIcon = document.getElementById('recordingIcon');
+                const recordingTimer = document.getElementById('recordingTimer');
 
-                // Click to browse
-                uploadArea.addEventListener('click', () => {
-                    fileInput.click();
-                });
-
-                // File selection
-                fileInput.addEventListener('change', (e) => {
-                    this.handleFileSelection(e.target.files[0]);
-                });
-
-                // Drag and drop
-                uploadArea.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.add('dragover');
-                });
-
-                uploadArea.addEventListener('dragleave', () => {
-                    uploadArea.classList.remove('dragover');
-                });
-
-                uploadArea.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadArea.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        this.handleFileSelection(files[0]);
+                // Start recording
+                recordBtn.addEventListener('click', async () => {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        
+                        this.audioChunks = [];
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        
+                        this.mediaRecorder.ondataavailable = (event) => {
+                            if (event.data.size > 0) {
+                                this.audioChunks.push(event.data);
+                            }
+                        };
+                        
+                        this.mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                            this.recordedBlob = audioBlob;
+                            
+                            // Stop all tracks
+                            stream.getTracks().forEach(track => track.stop());
+                            
+                            // Update UI
+                            recordingArea.classList.remove('recording');
+                            recordingArea.classList.add('has-recording');
+                            recordingStatus.textContent = `Recording ready (${(audioBlob.size / 1024).toFixed(1)} KB)`;
+                            recordingIcon.textContent = '✅';
+                            
+                            // Enable analyze buttons
+                            analyzeBtn.disabled = false;
+                            identifyBtn.disabled = false;
+                            
+                            // Stop timer
+                            if (this.recordingTimer) {
+                                clearInterval(this.recordingTimer);
+                                this.recordingTimer = null;
+                            }
+                        };
+                        
+                        this.mediaRecorder.start();
+                        this.recordingStartTime = Date.now();
+                        
+                        // Update UI
+                        recordingArea.classList.add('recording');
+                        recordingStatus.textContent = 'Recording in progress...';
+                        recordingIcon.textContent = '🔴';
+                        recordBtn.disabled = true;
+                        stopRecordBtn.disabled = false;
+                        analyzeBtn.disabled = true;
+                        identifyBtn.disabled = true;
+                        
+                        // Start timer
+                        this.recordingTimer = setInterval(() => {
+                            const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+                            const minutes = Math.floor(elapsed / 60);
+                            const seconds = elapsed % 60;
+                            recordingTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }, 100);
+                        
+                    } catch (error) {
+                        console.error('Error accessing microphone:', error);
+                        this.showError('Could not access microphone. Please grant permission and try again.');
                     }
                 });
-
-                // Form submission
-                uploadForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.uploadAudio();
+                
+                // Stop recording
+                stopRecordBtn.addEventListener('click', () => {
+                    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                        this.mediaRecorder.stop();
+                        recordBtn.disabled = false;
+                        stopRecordBtn.disabled = true;
+                    }
+                });
+                
+                // Analyze recording
+                analyzeBtn.addEventListener('click', () => {
+                    if (this.recordedBlob) {
+                        this.uploadRecordedAudio('/upload');
+                    }
+                });
+                
+                // Identify recording
+                identifyBtn.addEventListener('click', () => {
+                    if (this.recordedBlob) {
+                        this.uploadRecordedAudio('/identify');
+                    }
                 });
             }
 
-           handleFileSelection(file) {
-                const uploadArea = document.getElementById('fileUploadArea');
-                const uploadBtn = document.getElementById('uploadBtn');
-                const placeholder = uploadArea.querySelector('.upload-placeholder');
-                const fileInput = document.getElementById('audioFile');
-
-                if (!file) {
-                    console.log('No file provided to handleFileSelection');
+            async uploadRecordedAudio(endpoint) {
+                if (!this.recordedBlob) {
+                    this.showError('No recording available');
                     return;
                 }
 
-                console.log('Handling file:', file.name, file.type, file.size);
-
-                // Check file type
-                const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg', 'audio/x-m4a'];
-                const allowedExtensions = /\.(mp3|wav|flac|m4a|ogg)$/i;
-
-                if (!allowedTypes.includes(file.type) && !file.name.match(allowedExtensions)) {
-                    this.showError('Please select a valid audio file (MP3, WAV, FLAC, M4A, or OGG)');
-                    console.error('Invalid file type:', file.type, file.name);
-                    return;
-                }
-
-                // Check file size (16MB max)
-                if (file.size > 16 * 1024 * 1024) {
-                    this.showError('File size must be less than 16MB');
-                    return;
-                }
-
-                // IMPORTANT: Manually set the file to the input if it came from drag-drop
-                // Create a new DataTransfer to properly set the file
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                fileInput.files = dataTransfer.files;
-
-                console.log('File set to input, files count:', fileInput.files.length);
-
-                // Update UI
-                uploadArea.classList.add('file-selected');
-                placeholder.innerHTML = `
-                    <div class="upload-icon">🎵</div>
-                    <p><strong>${file.name}</strong></p>
-                    <p class="upload-formats">Ready to analyze (${(file.size / 1024 / 1024).toFixed(1)} MB)</p>
-                `;
-
-                uploadBtn.disabled = false;
-                const displayName = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
-                uploadBtn.textContent = `🎵 Analyze ${displayName}`;
-            }
-
-            async uploadAudio() {
-                const fileInput = document.getElementById('audioFile');
-                const uploadBtn = document.getElementById('uploadBtn');
-
-                // Debug: Check if file exists
-                console.log('File input:', fileInput);
-                console.log('Files:', fileInput.files);
-                console.log('Files length:', fileInput.files.length);
-
-                if (!fileInput.files || fileInput.files.length === 0) {
-                    this.showError('Please select an audio file first');
-                    return;
-                }
-
-                const file = fileInput.files[0];
-                console.log('Selected file:', file.name, file.size);
-
-                const originalBtnText = uploadBtn.textContent;
-                uploadBtn.disabled = true;
-                uploadBtn.textContent = '🔄 Analyzing...';
-
-                this.showLoading(true);
+                this.showLoading();
                 this.hideError();
-                this.hideAnalysis();
 
                 try {
+                    // Convert webm to a format the server expects
                     const formData = new FormData();
-                    formData.append('audio_file', file);
+                    formData.append('audio_file', this.recordedBlob, 'recording.webm');
 
-                    // Debug: Check FormData
-                    console.log('FormData created, sending to /upload');
+                    console.log(`Uploading recording to ${endpoint}...`);
 
-                    const response = await fetch('/upload', {
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         body: formData
-                        // DO NOT set Content-Type header - browser sets it automatically with boundary
                     });
 
                     console.log('Response status:', response.status);
@@ -743,36 +1174,71 @@
                     const data = await response.json();
                     console.log('Upload successful:', data);
 
-                    this.displayResults(data);
-                    this.resetUploadForm();
+                    this.hideLoading();
+                    
+                    if (endpoint === '/identify') {
+                        this.displayIdentificationResults(data);
+                    } else {
+                        this.displayResults(data);
+                    }
+                    
+                    this.resetRecording();
 
                 } catch (error) {
                     console.error('Upload error:', error);
+                    this.hideLoading();
                     this.showError(`Upload failed: ${error.message}`);
-                } finally {
-                    this.showLoading(false);
-                    uploadBtn.disabled = false;
-                    uploadBtn.textContent = originalBtnText;
                 }
             }
 
-            resetUploadForm() {
-                const uploadArea = document.getElementById('fileUploadArea');
-                const fileInput = document.getElementById('audioFile');
-                const uploadBtn = document.getElementById('uploadBtn');
-                const placeholder = uploadArea.querySelector('.upload-placeholder');
-
-                fileInput.value = '';
-                uploadArea.classList.remove('file-selected');
-                uploadBtn.disabled = true;
-                uploadBtn.textContent = '🎵 Analyze My Track';
-
-                placeholder.innerHTML = `
-                    <div class="upload-icon">📁</div>
-                    <p>Drop audio file here or click to browse</p>
-                    <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG</p>
-                `;
+            resetRecording() {
+                const recordingArea = document.getElementById('recordingArea');
+                const recordingStatus = document.getElementById('recordingStatus');
+                const recordingIcon = document.getElementById('recordingIcon');
+                const recordingTimer = document.getElementById('recordingTimer');
+                const recordBtn = document.getElementById('recordBtn');
+                const analyzeBtn = document.getElementById('analyzeRecordingBtn');
+                const identifyBtn = document.getElementById('identifyRecordingBtn');
+                
+                this.recordedBlob = null;
+                this.audioChunks = [];
+                
+                recordingArea.classList.remove('has-recording', 'recording');
+                recordingStatus.textContent = 'Ready to record';
+                recordingIcon.textContent = '🎙️';
+                recordingTimer.textContent = '';
+                recordBtn.disabled = false;
+                analyzeBtn.disabled = true;
+                identifyBtn.disabled = true;
             }
+
+            displayIdentificationResults(data) {
+                const analysisSection = document.getElementById('analysisSection');
+                const songInfo = document.getElementById('songInfo');
+                
+                if (data.error || !data.song) {
+                    this.showError(data.error || 'Could not identify the song');
+                    return;
+                }
+
+                const song = data.song;
+                const metadata = song.metadata || {};
+                
+                songInfo.innerHTML = `
+                    <div class="song-details">
+                        <h3>${metadata.title || 'Unknown Title'}</h3>
+                        <p class="artist">${metadata.artist || 'Unknown Artist'}</p>
+                        ${metadata.album ? `<p>Album: ${metadata.album}</p>` : ''}
+                        ${metadata.release_date ? `<p>Released: ${metadata.release_date}</p>` : ''}
+                        ${metadata.label ? `<p>Label: ${metadata.label}</p>` : ''}
+                        <p style="color: #1ed760;">✓ Song identified successfully</p>
+                    </div>
+                `;
+                
+                this.showAnalysis(true);
+                analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
 
             async searchSong() {
                 const songName = document.getElementById('songInput').value.trim();
@@ -1125,8 +1591,20 @@
                 return `${keyName} ${modeName}`.trim();
             }
 
-            showLoading(show) {
-                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            showLoading(show, message = 'Analyzing audio features...') {
+                const loadingDiv = document.getElementById('loading');
+                if (typeof show === 'string') {
+                    message = show;
+                    show = true;
+                }
+                if (show) {
+                    loadingDiv.querySelector('p').textContent = message;
+                }
+                loadingDiv.style.display = show ? 'block' : 'none';
+            }
+
+            hideLoading() {
+                this.showLoading(false);
             }
 
             showError(message) {
@@ -1157,838 +1635,488 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            new MelodySearchApp();
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MelodySearch - Mathematical Music Discovery</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #ffffff;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Header */
-        .header {
-            padding: 40px 0;
-            border-bottom: 1px solid #1a1a1a;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            color: #888888;
-            font-size: 1.1rem;
-        }
-
-        /* Search */
-        .search-section {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
-            padding: 32px;
-            margin-bottom: 40px;
-        }
-
-        .search-form {
-            display: flex;
-            gap: 16px;
-            max-width: 600px;
-        }
-
-        .search-input {
-            flex: 1;
-            padding: 16px 20px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #ffffff;
-            font-size: 1rem;
-            transition: border-color 0.2s ease;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #0066cc;
-        }
-
-        .search-input::placeholder {
-            color: #666666;
-        }
-
-        .search-btn {
-            padding: 16px 24px;
-            background: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .search-btn:hover {
-            background: #0052a3;
-        }
-
-        .search-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Loading */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 60px 0;
-            color: #888888;
-        }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #1a1a1a;
-            border-top: 2px solid #0066cc;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Error */
-        .error {
-            background: #2a1a1a;
-            border: 1px solid #441a1a;
-            color: #ff6b6b;
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            display: none;
-        }
-
-        /* Analysis Section */
-        .analysis-section {
-            display: none;
-        }
-
-        /* Song Info */
-        .song-info {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .song-details h3 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .song-details p {
-            color: #888888;
-            margin-bottom: 2px;
-        }
-
-        .song-details .artist {
-            color: #ffffff;
-            font-weight: 500;
-        }
-
-        /* Analysis Methods */
-        .analysis-methods {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 32px;
-            flex-wrap: wrap;
-        }
-
-        .method-badge {
-            padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .method-spotify {
-            background: #1ed760;
-            color: #000000;
-        }
-
-        .method-essentia {
-            background: #ff6b35;
-            color: #ffffff;
-        }
-
-        .method-fallback {
-            background: #666666;
-            color: #ffffff;
-        }
-
-        /* Feature Analysis */
-        .feature-analysis {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .feature-group {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
-            padding: 24px;
-        }
-
-        .feature-group h4 {
-            color: #ffffff;
-            font-weight: 600;
-            margin-bottom: 16px;
-            font-size: 1.1rem;
-        }
-
-        .feature-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #1a1a1a;
-        }
-
-        .feature-item:last-child {
-            border-bottom: none;
-        }
-
-        .feature-item span:first-child {
-            color: #cccccc;
-        }
-
-        .feature-value {
-            font-weight: 600;
-            color: #ffffff;
-        }
-
-        /* Recommendations */
-        .recommendations {
-            margin-top: 40px;
-        }
-
-        .recommendations h2 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 24px;
-            color: #ffffff;
-        }
-
-        .recommendation-card {
-            background: #111111;
-            border: 1px solid #1a1a1a;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 16px;
-            transition: border-color 0.2s ease;
-        }
-
-        .recommendation-card:hover {
-            border-color: #2a2a2a;
-        }
-
-        .recommendation-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
-            gap: 16px;
-        }
-
-        .recommendation-header h4 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #ffffff;
-        }
-
-        .recommendation-header p {
-            color: #888888;
-            margin-bottom: 2px;
-        }
-
-        .recommendation-header .artist {
-            color: #cccccc;
-            font-weight: 500;
-        }
-
-        .similarity-score {
-            background: #0066cc;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            white-space: nowrap;
-        }
-
-        .recommendation-explanation {
-            color: #888888;
-            margin-bottom: 16px;
-            font-style: italic;
-        }
-
-        .feature-breakdown {
-            display: flex;
-            gap: 8px;
-            margin: 12px 0;
-            flex-wrap: wrap;
-        }
-
-        .feature-breakdown span {
-            background: #1a1a1a;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            color: #cccccc;
-        }
-
-        .mini-features {
-            color: #888888;
-            font-size: 0.9rem;
-            margin-top: 12px;
-        }
-
-        .spotify-link {
-            color: #1ed760;
-            text-decoration: none;
-        }
-
-        .spotify-link:hover {
-            text-decoration: underline;
-        }
-
-        audio {
-            width: 100%;
-            margin-top: 16px;
-            height: 40px;
-        }
-
-        /* Dark audio controls styling */
-        audio::-webkit-media-controls-panel {
-            background-color: #1a1a1a;
-        }
-
-        .no-preview {
-            color: #666666;
-            font-size: 0.9em;
-            margin-top: 12px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .search-form {
-                flex-direction: column;
-            }
-
-            .feature-analysis {
-                grid-template-columns: 1fr;
-            }
-
-            .recommendation-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
-
-            .similarity-score {
-                align-self: flex-start;
-            }
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0a0a0a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #2a2a2a;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3a3a3a;
-        }
-    </style>
-    <!-- Load Essentia.js for client-side audio analysis -->
-    <script src="https://cdn.jsdelivr.net/npm/essentia.js@0.1.3/dist/essentia-wasm.web.js"></script>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>MelodySearch</h1>
-            <p>Mathematical cross-genre music discovery through audio feature analysis</p>
-        </div>
-
-        <div class="search-section">
-            <form class="search-form" id="searchForm">
-                <input
-                    type="text"
-                    class="search-input"
-                    id="songInput"
-                    placeholder="Enter song name or artist - song title"
-                    required
-                >
-                <button type="submit" class="search-btn" id="searchBtn">
-                    Analyze
-                </button>
-            </form>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing audio features...</p>
-        </div>
-
-        <div class="error" id="error"></div>
-
-        <div class="analysis-section" id="analysisSection">
-            <div class="song-info" id="songInfo">
-                <!-- Song info will be populated here -->
-            </div>
-
-            <div class="analysis-methods" id="analysisMethods">
-                <!-- Analysis method badges will appear here -->
-            </div>
-
-            <div class="feature-analysis" id="featureAnalysis">
-                <!-- Feature analysis will be populated here -->
-            </div>
-
-            <div class="recommendations" id="recommendations">
-                <h2>Similar Songs</h2>
-                <div id="recommendationsList">
-                    <!-- Recommendations will be populated here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        class MelodySearchApp {
+        // Library Management
+        class LibraryManager {
             constructor() {
-                this.essentia = null;
-                this.initializeEssentia();
-                this.setupEventListeners();
+                this.currentSong = null;
+                this.currentCollectionId = null;
+                this.savedSongs = new Set();
+                this.setupLibraryEventListeners();
+                this.loadLibrary();
+                this.loadCollections();
             }
 
-            async initializeEssentia() {
-                try {
-                    this.essentia = new Essentia();
-                    console.log('✓ Essentia.js initialized');
-                } catch (error) {
-                    console.warn('⚠ Essentia.js initialization failed:', error);
-                }
-            }
+            setupLibraryEventListeners() {
+                // Tab switching
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabName = e.target.dataset.tab;
+                        this.switchTab(tabName);
+                    });
+                });
 
-            setupEventListeners() {
-                document.getElementById('searchForm').addEventListener('submit', (e) => {
+                // Create collection button
+                document.getElementById('createCollectionBtn')?.addEventListener('click', () => {
+                    openModal('createCollectionModal');
+                });
+
+                // Create collection form
+                document.getElementById('createCollectionForm')?.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    this.searchSong();
+                    this.createCollection();
                 });
             }
 
-            async searchSong() {
-                const songName = document.getElementById('songInput').value.trim();
-                if (!songName) return;
+            switchTab(tabName) {
+                // Update tab buttons
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabName);
+                });
 
-                this.showLoading(true);
-                this.hideError();
-                this.hideAnalysis();
+                // Update tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.toggle('active', content.dataset.tabContent === tabName);
+                });
 
+                // Load data when switching to library or collections
+                if (tabName === 'library') {
+                    this.loadLibrary();
+                } else if (tabName === 'collections') {
+                    this.loadCollections();
+                }
+            }
+
+            async loadLibrary() {
                 try {
-                    const response = await fetch('/search', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ song_name: songName })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
+                    const response = await fetch('/library/songs');
                     const data = await response.json();
 
-                    if (data.original_song?.spotify_metadata?.preview_url && this.essentia) {
-                        try {
-                            const essentiaFeatures = await this.analyzeWithEssentia(
-                                data.original_song.spotify_metadata.preview_url
-                            );
-
-                            if (essentiaFeatures) {
-                                data.original_song.audio_features = {
-                                    ...data.original_song.audio_features,
-                                    ...essentiaFeatures,
-                                    analysis_method: 'hybrid'
-                                };
-                            }
-                        } catch (essentiaError) {
-                            console.warn('Essentia analysis failed:', essentiaError);
-                        }
+                    if (data.success) {
+                        this.updateLibraryStats(data.count);
+                        this.displayLibrarySongs(data.songs);
+                        
+                        // Update saved songs set
+                        this.savedSongs = new Set(data.songs.map(s => s.spotify_id || s.title));
                     }
-
-                    this.displayResults(data);
-
                 } catch (error) {
-                    console.error('Search error:', error);
-                    this.showError(`Failed to analyze song: ${error.message}`);
-                } finally {
-                    this.showLoading(false);
+                    console.error('Failed to load library:', error);
                 }
             }
 
-            async analyzeWithEssentia(previewUrl) {
-                if (!this.essentia) return null;
-
-                try {
-                    console.log('🎵 Analyzing with Essentia.js...');
-
-                    const audioResponse = await fetch(previewUrl);
-                    const audioBuffer = await audioResponse.arrayBuffer();
-
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
-
-                    const audioData = decodedAudio.getChannelData(0);
-
-                    const features = {};
-
-                    try {
-                        const tempoResult = this.essentia.RhythmExtractor2013(audioData, decodedAudio.sampleRate);
-                        features.essentia_tempo = tempoResult.bpm;
-                        features.rhythm_strength = tempoResult.confidence;
-                    } catch (e) {
-                        console.warn('Tempo extraction failed:', e);
-                    }
-
-                    try {
-                        const spectralResult = this.essentia.SpectralCentroid(audioData);
-                        features.spectral_centroid = spectralResult.mean();
-
-                        const rolloffResult = this.essentia.SpectralRolloff(audioData);
-                        features.spectral_rolloff = rolloffResult.mean();
-                    } catch (e) {
-                        console.warn('Spectral analysis failed:', e);
-                    }
-
-                    try {
-                        const energyResult = this.essentia.Energy(audioData);
-                        features.essentia_energy = energyResult;
-
-                        const rmsResult = this.essentia.RMS(audioData);
-                        features.rms_energy = rmsResult;
-                    } catch (e) {
-                        console.warn('Energy analysis failed:', e);
-                    }
-
-                    try {
-                        const chromaResult = this.essentia.ChromaVector(audioData, decodedAudio.sampleRate);
-                        features.essentia_chroma = Array.from(chromaResult);
-
-                        const keyResult = this.essentia.KeyExtractor(audioData, decodedAudio.sampleRate);
-                        features.essentia_key = keyResult.key;
-                        features.essentia_scale = keyResult.scale;
-                    } catch (e) {
-                        console.warn('Tonal analysis failed:', e);
-                    }
-
-                    try {
-                        const mfccResult = this.essentia.MFCC(audioData);
-                        features.essentia_mfcc = Array.from(mfccResult);
-                    } catch (e) {
-                        console.warn('MFCC analysis failed:', e);
-                    }
-
-                    console.log('✓ Essentia analysis complete', features);
-                    return features;
-
-                } catch (error) {
-                    console.error('Essentia analysis error:', error);
-                    return null;
+            updateLibraryStats(count) {
+                const statsEl = document.getElementById('libraryStats');
+                if (statsEl) {
+                    statsEl.textContent = `${count} song${count !== 1 ? 's' : ''} in library`;
                 }
             }
 
-            displayResults(data) {
-                const song = data.original_song;
-
-                this.displaySongInfo(song);
-                this.displayAnalysisMethods(song.audio_features);
-                this.displayFeatureAnalysis(song.audio_features);
-                this.displayRecommendations(data.spotify_recommendations || []);
-
-                this.showAnalysis(true);
-            }
-
-            displaySongInfo(song) {
-                const songInfo = document.getElementById('songInfo');
-                const completeness = Math.round((song.audio_features.feature_completeness || 0) * 100);
-
-                songInfo.innerHTML = `
-                    <div class="song-details">
-                        <h3>${song.title}</h3>
-                        <p class="artist">${song.artist}</p>
-                        <p>Analysis Completeness: ${completeness}%</p>
-                        ${song.spotify_metadata?.has_preview ?
-                            '<p style="color: #1ed760;">✓ Audio preview analyzed</p>' :
-                            '<p style="color: #ff6b6b;">⚠ No preview - estimated features</p>'
-                        }
-                    </div>
-                `;
-            }
-
-            displayAnalysisMethods(features) {
-                const methodsContainer = document.getElementById('analysisMethods');
-                const methods = [];
-
-                if (features.primary_source === 'spotify_analysis') {
-                    methods.push('<span class="method-badge method-spotify">Spotify Audio Analysis</span>');
-                }
-
-                if (features.secondary_source === 'essentia') {
-                    methods.push('<span class="method-badge method-essentia">Essentia.js</span>');
-                }
-
-                if (features.primary_source === 'fallback') {
-                    methods.push('<span class="method-badge method-fallback">Estimated</span>');
-                }
-
-                methodsContainer.innerHTML = methods.join('');
-            }
-
-            displayFeatureAnalysis(features) {
-                const container = document.getElementById('featureAnalysis');
-
-                const rhythmicFeatures = this.createFeatureGroup('Rhythmic Features', {
-                    'Tempo': features.tempo ? `${Math.round(features.tempo)} BPM` : 'Unknown',
-                    'Rhythm Stability': this.formatPercent(features.rhythm_stability),
-                    'Beat Strength': this.formatPercent(features.beat_strength),
-                    'Time Signature': `${features.time_signature || 4}/4`
-                });
-
-                const tonalFeatures = this.createFeatureGroup('Tonal Features', {
-                    'Key': this.formatKey(features.key, features.mode),
-                    'Key Confidence': this.formatPercent(features.key_confidence),
-                    'Mode': features.mode === 1 ? 'Major' : features.mode === 0 ? 'Minor' : 'Unknown'
-                });
-
-                const energeticFeatures = this.createFeatureGroup('Energy & Mood', {
-                    'Energy': this.formatPercent(features.energy),
-                    'Valence': this.formatPercent(features.valence),
-                    'Danceability': this.formatPercent(features.danceability),
-                    'Loudness': features.loudness ? `${features.loudness.toFixed(1)} dB` : 'Unknown'
-                });
-
-                const timbralFeatures = this.createFeatureGroup('Timbral', {
-                    'Acousticness': this.formatPercent(features.acousticness),
-                    'Instrumentalness': this.formatPercent(features.instrumentalness),
-                    'Speechiness': this.formatPercent(features.speechiness),
-                    'Liveness': this.formatPercent(features.liveness)
-                });
-
-                container.innerHTML = rhythmicFeatures + tonalFeatures + energeticFeatures + timbralFeatures;
-            }
-
-            createFeatureGroup(title, features) {
-                const items = Object.entries(features)
-                    .map(([key, value]) => `
-                        <div class="feature-item">
-                            <span>${key}</span>
-                            <span class="feature-value">${value}</span>
+            displayLibrarySongs(songs) {
+                const container = document.getElementById('librarySongsList');
+                
+                if (!songs || songs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎵</div>
+                            <p>Your library is empty</p>
+                            <p style="font-size: 0.9rem; margin-top: 8px;">
+                                Save songs from search results to start building your library
+                            </p>
                         </div>
-                    `).join('');
-
-                return `
-                    <div class="feature-group">
-                        <h4>${title}</h4>
-                        ${items}
-                    </div>
-                `;
-            }
-
-            displayRecommendations(recommendations) {
-                const container = document.getElementById('recommendationsList');
-
-                if (!recommendations || recommendations.length === 0) {
-                    container.innerHTML = '<p style="color: #888888;">No recommendations found. Try a different song!</p>';
+                    `;
                     return;
                 }
 
-                const html = recommendations.map((rec) => {
-                    const title = rec.title || rec.name || 'Unknown Title';
-                    const artist = rec.artist || (rec.artists && rec.artists[0]?.name) || 'Unknown Artist';
-                    const similarity = rec.similarity_score || 0;
-                    const explanation = rec.explanation || 'Similar audio characteristics';
-                    const previewUrl = rec.preview_url || rec.audio_features?.preview_url;
-                    const popularity = rec.popularity;
-                    const spotifyId = rec.spotify_id || rec.id;
-
-                    return `
-                    <div class="recommendation-card">
-                        <div class="recommendation-header">
-                            <div>
-                                <h4>${title}</h4>
-                                <p class="artist">${artist}</p>
-                                ${popularity ? `<p>Popularity: ${popularity}/100</p>` : ''}
-                                ${spotifyId ? `<p><a href="https://open.spotify.com/track/${spotifyId}" target="_blank" class="spotify-link">Open in Spotify</a></p>` : ''}
-                            </div>
-                            <div class="similarity-score">
-                                ${Math.round(similarity * 100)}% match
-                            </div>
+                const html = songs.map(song => `
+                    <div class="library-song-card">
+                        <div class="library-song-info">
+                            <h4>${song.title}</h4>
+                            <p>${song.artist}</p>
+                            <p style="font-size: 0.8rem; color: #666;">
+                                Added ${new Date(song.added_at).toLocaleDateString()}
+                            </p>
                         </div>
-                        <div class="recommendation-explanation">${explanation}</div>
-
-                        ${rec.feature_breakdown ? this.displayFeatureBreakdown(rec.feature_breakdown) : ''}
-
-                        ${previewUrl ?
-                            `<audio controls>
-                                <source src="${previewUrl}" type="audio/mpeg">
-                                Your browser does not support audio playback.
-                            </audio>` :
-                            '<p class="no-preview">⚠ No audio preview available</p>'
-                        }
-
-                        ${rec.audio_features ? this.displayMiniFeatures(rec.audio_features) : ''}
+                        <div class="library-song-actions">
+                            <button class="icon-btn" onclick="libraryManager.addSongToCollection('${song.id}')">
+                                ➕ Add to Collection
+                            </button>
+                            <button class="icon-btn" onclick="libraryManager.removeSongFromLibrary('${song.id}')">
+                                🗑️
+                            </button>
+                        </div>
                     </div>
-                `;
-                }).join('');
+                `).join('');
 
                 container.innerHTML = html;
             }
 
-            displayFeatureBreakdown(breakdown) {
-                const sortedBreakdown = Object.entries(breakdown)
-                    .filter(([key, value]) => typeof value === 'number' && value > 0.3)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 4);
+            async addSongToLibrary(songData) {
+                try {
+                    const response = await fetch('/library/songs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(songData)
+                    });
 
-                if (sortedBreakdown.length === 0) return '';
-
-                const breakdownHtml = sortedBreakdown.map(([feature, score]) => {
-                    const featureNames = {
-                        'rhythmic': 'Rhythm',
-                        'tonal': 'Harmony',
-                        'timbral': 'Texture',
-                        'energetic': 'Energy',
-                        'structural': 'Structure',
-                        'vector_cosine': 'Overall'
-                    };
-
-                    const displayName = featureNames[feature] || feature;
-                    const percentage = Math.round(score * 100);
-
-                    return `<span>${displayName}: ${percentage}%</span>`;
-                }).join('');
-
-                return `<div class="feature-breakdown">${breakdownHtml}</div>`;
-            }
-
-            displayMiniFeatures(features) {
-                if (!features.tempo && !features.energy && !features.key) return '';
-
-                const miniFeatures = [];
-
-                if (features.tempo) miniFeatures.push(`${Math.round(features.tempo)} BPM`);
-                if (features.energy) miniFeatures.push(`${Math.round(features.energy * 100)}% Energy`);
-                if (features.key !== undefined && features.mode !== undefined) {
-                    const keyName = this.formatKey(features.key, features.mode);
-                    if (keyName !== 'Unknown') miniFeatures.push(keyName);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.savedSongs.add(songData.spotify_id || songData.title);
+                        this.showToast('✓ Song added to library');
+                        this.loadLibrary();
+                        return true;
+                    } else {
+                        this.showToast(data.message);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Failed to add song:', error);
+                    this.showToast('Failed to add song to library');
+                    return false;
                 }
-                if (features.valence) miniFeatures.push(`${Math.round(features.valence * 100)}% Positive`);
-
-                return miniFeatures.length > 0 ?
-                    `<div class="mini-features">${miniFeatures.join(' • ')}</div>` : '';
             }
 
-            formatPercent(value) {
-                if (value === null || value === undefined) return 'Unknown';
-                return `${Math.round(value * 100)}%`;
+            async removeSongFromLibrary(songId) {
+                if (!confirm('Remove this song from your library?')) return;
+
+                try {
+                    const response = await fetch(`/library/songs/${songId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showToast('✓ Song removed from library');
+                        this.loadLibrary();
+                    }
+                } catch (error) {
+                    console.error('Failed to remove song:', error);
+                }
             }
 
-            formatKey(key, mode) {
-                const keys = ['C', 'C♯/D♭', 'D', 'D♯/E♭', 'E', 'F', 'F♯/G♭', 'G', 'G♯/A♭', 'A', 'A♯/B♭', 'B'];
-                if (key === null || key === undefined) return 'Unknown';
-                const keyName = keys[key] || 'Unknown';
-                const modeName = mode === 1 ? 'Major' : mode === 0 ? 'Minor' : '';
-                return `${keyName} ${modeName}`.trim();
+            async loadCollections() {
+                try {
+                    const response = await fetch('/library/collections');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.updateCollectionsStats(data.count);
+                        this.displayCollections(data.collections);
+                    }
+                } catch (error) {
+                    console.error('Failed to load collections:', error);
+                }
             }
 
-            showLoading(show) {
-                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            updateCollectionsStats(count) {
+                const statsEl = document.getElementById('collectionsStats');
+                if (statsEl) {
+                    statsEl.textContent = `${count} collection${count !== 1 ? 's' : ''}`;
+                }
             }
 
-            showError(message) {
-                const errorDiv = document.getElementById('error');
-                errorDiv.textContent = message;
-                errorDiv.style.display = 'block';
+            displayCollections(collections) {
+                const container = document.getElementById('collectionsList');
+                
+                if (!collections || collections.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <p>No collections yet</p>
+                            <p style="font-size: 0.9rem; margin-top: 8px;">
+                                Create a collection to organize your favorite songs
+                            </p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = collections.map(collection => `
+                    <div class="collection-card" onclick="libraryManager.viewCollection('${collection.id}')">
+                        <div class="collection-header">
+                            <div>
+                                <div class="collection-name">${collection.name}</div>
+                                ${collection.description ? `<div class="collection-description">${collection.description}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="collection-meta">
+                            ${collection.song_count} song${collection.song_count !== 1 ? 's' : ''} • 
+                            Created ${new Date(collection.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = html;
             }
 
-            hideError() {
-                document.getElementById('error').style.display = 'none';
+            async createCollection() {
+                const name = document.getElementById('collectionName').value;
+                const description = document.getElementById('collectionDescription').value;
+
+                try {
+                    const response = await fetch('/library/collections', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('createCollectionModal');
+                        this.showToast('✓ Collection created');
+                        this.loadCollections();
+                        document.getElementById('createCollectionForm').reset();
+                    }
+                } catch (error) {
+                    console.error('Failed to create collection:', error);
+                    this.showToast('Failed to create collection');
+                }
             }
 
-            showAnalysis(show) {
-                document.getElementById('analysisSection').style.display = show ? 'block' : 'none';
+            async viewCollection(collectionId) {
+                this.currentCollectionId = collectionId;
+
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const collection = data.collection;
+                        
+                        document.getElementById('viewCollectionName').textContent = collection.name;
+                        document.getElementById('viewCollectionDescription').textContent = 
+                            collection.description || 'No description';
+
+                        const songsHtml = collection.songs.length > 0 ? 
+                            collection.songs.map(song => `
+                                <div class="library-song-card">
+                                    <div class="library-song-info">
+                                        <h4>${song.title}</h4>
+                                        <p>${song.artist}</p>
+                                    </div>
+                                    <button class="icon-btn" 
+                                            onclick="libraryManager.removeSongFromCollection('${collectionId}', '${song.id}')">
+                                        Remove
+                                    </button>
+                                </div>
+                            `).join('') :
+                            '<p style="color: #888888;">No songs in this collection yet</p>';
+
+                        document.getElementById('viewCollectionSongs').innerHTML = songsHtml;
+
+                        // Setup delete button
+                        document.getElementById('deleteCollectionBtn').onclick = () => {
+                            this.deleteCollection(collectionId);
+                        };
+
+                        openModal('viewCollectionModal');
+                    }
+                } catch (error) {
+                    console.error('Failed to load collection:', error);
+                }
             }
 
-            hideAnalysis() {
-                this.showAnalysis(false);
+            async deleteCollection(collectionId) {
+                if (!confirm('Delete this collection? This cannot be undone.')) return;
+
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('viewCollectionModal');
+                        this.showToast('✓ Collection deleted');
+                        this.loadCollections();
+                    }
+                } catch (error) {
+                    console.error('Failed to delete collection:', error);
+                }
+            }
+
+            async addSongToCollection(songId) {
+                this.currentSong = songId;
+
+                try {
+                    const response = await fetch('/library/collections');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const collections = data.collections;
+                        
+                        if (collections.length === 0) {
+                            this.showToast('Create a collection first');
+                            return;
+                        }
+
+                        const html = collections.map(collection => `
+                            <div class="library-song-card" style="cursor: pointer;" 
+                                 onclick="libraryManager.addToCollectionConfirm('${collection.id}')">
+                                <div class="library-song-info">
+                                    <h4>${collection.name}</h4>
+                                    <p>${collection.song_count} songs</p>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        document.getElementById('addToCollectionList').innerHTML = html;
+                        openModal('addToCollectionModal');
+                    }
+                } catch (error) {
+                    console.error('Failed to load collections:', error);
+                }
+            }
+
+            async addToCollectionConfirm(collectionId) {
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}/songs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ song_id: this.currentSong })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        closeModal('addToCollectionModal');
+                        this.showToast('✓ Song added to collection');
+                    } else {
+                        this.showToast(data.message);
+                    }
+                } catch (error) {
+                    console.error('Failed to add song to collection:', error);
+                    this.showToast('Failed to add song to collection');
+                }
+            }
+
+            async removeSongFromCollection(collectionId, songId) {
+                try {
+                    const response = await fetch(`/library/collections/${collectionId}/songs/${songId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showToast('✓ Song removed from collection');
+                        this.viewCollection(collectionId);
+                    }
+                } catch (error) {
+                    console.error('Failed to remove song:', error);
+                }
+            }
+
+            isSongSaved(song) {
+                const identifier = song.spotify_id || song.title;
+                return this.savedSongs.has(identifier);
+            }
+
+            showToast(message) {
+                // Simple toast notification
+                const toast = document.createElement('div');
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: #28a745;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                `;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
             }
         }
 
+        // Modal helpers
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Global library manager instance
+        let libraryManager;
+
         document.addEventListener('DOMContentLoaded', () => {
-            new MelodySearchApp();
+            const app = new MelodySearchApp();
+            libraryManager = new LibraryManager();
+
+            // Add save buttons to recommendations
+            const originalDisplayRecommendations = app.displayRecommendations.bind(app);
+            app.displayRecommendations = function(recommendations) {
+                originalDisplayRecommendations(recommendations);
+
+                // Add save buttons to each recommendation
+                setTimeout(() => {
+                    const recCards = document.querySelectorAll('.recommendation-card');
+                    recCards.forEach((card, index) => {
+                        const rec = recommendations[index];
+                        if (!rec) return;
+
+                        const header = card.querySelector('.recommendation-header');
+                        if (!header) return;
+
+                        const isSaved = libraryManager.isSongSaved(rec);
+                        const saveBtn = document.createElement('button');
+                        saveBtn.className = isSaved ? 'icon-btn saved' : 'icon-btn save';
+                        saveBtn.textContent = isSaved ? '✓ Saved' : '💾 Save';
+                        saveBtn.disabled = isSaved;
+                        
+                        if (!isSaved) {
+                            saveBtn.onclick = async () => {
+                                const songData = {
+                                    title: rec.title || rec.name,
+                                    artist: rec.artist,
+                                    audio_features: rec.audio_features || {},
+                                    spotify_metadata: {
+                                        spotify_id: rec.spotify_id || rec.id,
+                                        popularity: rec.popularity,
+                                        preview_url: rec.preview_url
+                                    },
+                                    spotify_id: rec.spotify_id || rec.id,
+                                    source: 'search_result'
+                                };
+
+                                const success = await libraryManager.addSongToLibrary(songData);
+                                if (success) {
+                                    saveBtn.textContent = '✓ Saved';
+                                    saveBtn.className = 'icon-btn saved';
+                                    saveBtn.disabled = true;
+                                }
+                            };
+                        }
+
+                        header.appendChild(saveBtn);
+                    });
+                }, 100);
+            };
+
+            // Add CSS animations
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
         });
     </script>
 </body>
-</html>

@@ -26,6 +26,9 @@ instance/
 Data/
 *.json
 
+# User Library (personal data)
+Data/library/
+
 # OS
 .DS_Store
 Thumbs.db
