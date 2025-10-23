@@ -132,6 +132,43 @@
             margin-bottom: 24px;
         }
 
+        /* Audio Tabs */
+        .audio-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .audio-tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #888888;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .audio-tab:hover {
+            color: #ffffff;
+        }
+
+        .audio-tab.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+
+        .audio-tab-content {
+            display: none;
+        }
+
+        .audio-tab-content.active {
+            display: block;
+        }
+
         /* Recording Area */
         .recording-area {
             border: 2px solid #2a2a2a;
@@ -154,12 +191,43 @@
             background: rgba(40, 167, 69, 0.1);
         }
 
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #2a2a2a;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: #0a0a0a;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #0066cc;
+            background: rgba(0, 102, 204, 0.05);
+        }
+
+        .upload-area.drag-over {
+            border-color: #0066cc;
+            background: rgba(0, 102, 204, 0.1);
+            border-style: solid;
+        }
+
+        .upload-area.has-file {
+            border-color: #28a745;
+            border-style: solid;
+            background: rgba(40, 167, 69, 0.1);
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
 
-        .recording-placeholder {
+        .recording-placeholder,
+        .upload-placeholder,
+        .upload-file-info {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -171,7 +239,9 @@
             margin-bottom: 16px;
         }
 
-        .recording-placeholder p {
+        .recording-placeholder p,
+        .upload-placeholder p,
+        .upload-file-info p {
             color: #cccccc;
             margin-bottom: 8px;
         }
@@ -859,33 +929,82 @@
             </div>
 
             <div class="upload-section">
-                <h2>🎙️ Record & Analyze Audio</h2>
-                <p>Record live audio to identify songs or analyze similar tracks</p>
+                <h2>🎵 Audio Analysis</h2>
+                <p>Record live audio or upload a file to identify songs or find similar tracks</p>
 
-                <div class="recording-area" id="recordingArea">
-                    <div class="recording-placeholder">
-                        <div class="upload-icon" id="recordingIcon">🎙️</div>
-                        <p id="recordingStatus">Ready to record</p>
-                        <p class="upload-formats" id="recordingTimer"></p>
+                <!-- Audio Tabs -->
+                <div class="audio-tabs">
+                    <button class="audio-tab active" data-audio-tab="record">
+                        🎙️ Record Audio
+                    </button>
+                    <button class="audio-tab" data-audio-tab="upload">
+                        📁 Upload File
+                    </button>
+                </div>
+
+                <!-- Record Audio Tab Content -->
+                <div class="audio-tab-content active" data-audio-tab-content="record">
+                    <div class="recording-area" id="recordingArea">
+                        <div class="recording-placeholder">
+                            <div class="upload-icon" id="recordingIcon">🎙️</div>
+                            <p id="recordingStatus">Ready to record</p>
+                            <p class="upload-formats" id="recordingTimer"></p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #dc3545;">
+                            ⏺️ Start Recording
+                        </button>
+                        <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #6c757d;" disabled>
+                            ⏹️ Stop Recording
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #0066cc;" disabled>
+                            🔍 Analyze Recording
+                        </button>
+                        <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled>
+                            🎵 Identify Song
+                        </button>
                     </div>
                 </div>
-                
-                <div style="display: flex; gap: 12px; margin-top: 20px;">
-                    <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #dc3545;">
-                        ⏺️ Start Recording
-                    </button>
-                    <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #6c757d;" disabled>
-                        ⏹️ Stop Recording
-                    </button>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-top: 12px;">
-                    <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #0066cc;" disabled>
-                        🔍 Analyze Recording
-                    </button>
-                    <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled>
-                        🎵 Identify Song
-                    </button>
+
+                <!-- Upload File Tab Content -->
+                <div class="audio-tab-content" data-audio-tab-content="upload">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="audioFileInput" accept=".mp3,.wav,.flac,.m4a,.ogg,.webm" style="display: none;">
+                        <div class="upload-placeholder" id="uploadPlaceholder">
+                            <div class="upload-icon">📁</div>
+                            <p>Drag & drop your audio file here</p>
+                            <p class="upload-formats">or click to browse</p>
+                            <p class="upload-formats" style="margin-top: 8px;">Supported formats: MP3, WAV, FLAC, M4A, OGG, WEBM</p>
+                        </div>
+                        <div class="upload-file-info" id="uploadFileInfo" style="display: none;">
+                            <div class="upload-icon" id="uploadIcon">✅</div>
+                            <p id="uploadFileName">No file selected</p>
+                            <p class="upload-formats" id="uploadFileSize"></p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button type="button" class="upload-btn" id="selectFileBtn" style="flex: 1; background: #28a745;">
+                            📂 Select File
+                        </button>
+                        <button type="button" class="upload-btn" id="clearFileBtn" style="flex: 1; background: #6c757d;" disabled>
+                            🗑️ Clear
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <button type="button" class="upload-btn" id="analyzeUploadBtn" style="flex: 1; background: #0066cc;" disabled>
+                            🔍 Analyze Audio
+                        </button>
+                        <button type="button" class="upload-btn" id="identifyUploadBtn" style="flex: 1; background: #9c27b0;" disabled>
+                            🎵 Identify Song
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1019,9 +1138,12 @@
                 this.recordedBlob = null;
                 this.recordingTimer = null;
                 this.recordingStartTime = 0;
+                this.uploadedFile = null;
                 this.initializeEssentia();
                 this.setupEventListeners();
                 this.setupRecording();
+                this.setupFileUpload();
+                this.setupAudioTabs();
             }
 
             async initializeEssentia() {
@@ -1143,7 +1265,232 @@
                 });
             }
 
-            async uploadRecordedAudio(endpoint) {
+            setupAudioTabs() {
+                // Handle audio tab switching
+                const audioTabs = document.querySelectorAll('.audio-tab');
+                audioTabs.forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabName = e.target.dataset.audioTab;
+                        
+                        // Update tab buttons
+                        audioTabs.forEach(t => t.classList.remove('active'));
+                        e.target.classList.add('active');
+                        
+                        // Update tab content
+                        document.querySelectorAll('.audio-tab-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        document.querySelector(`[data-audio-tab-content="${tabName}"]`).classList.add('active');
+                    });
+                });
+            }
+
+            setupFileUpload() {
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('audioFileInput');
+                const selectFileBtn = document.getElementById('selectFileBtn');
+                const clearFileBtn = document.getElementById('clearFileBtn');
+                const analyzeUploadBtn = document.getElementById('analyzeUploadBtn');
+                const identifyUploadBtn = document.getElementById('identifyUploadBtn');
+                const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+                const uploadFileInfo = document.getElementById('uploadFileInfo');
+                const uploadFileName = document.getElementById('uploadFileName');
+                const uploadFileSize = document.getElementById('uploadFileSize');
+                const uploadIcon = document.getElementById('uploadIcon');
+
+                // Click to select file
+                uploadArea.addEventListener('click', () => {
+                    fileInput.click();
+                });
+
+                selectFileBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+
+                // Prevent default drag behaviors
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                // Highlight drop zone when dragging over
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.add('drag-over');
+                    });
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.remove('drag-over');
+                    });
+                });
+
+                // Handle dropped files
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFileSelection(files[0]);
+                    }
+                });
+
+                // Handle file input change
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        this.handleFileSelection(e.target.files[0]);
+                    }
+                });
+
+                // Clear file button
+                clearFileBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.clearUploadedFile();
+                });
+
+                // Analyze upload button
+                analyzeUploadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.uploadedFile) {
+                        this.uploadAudioFile('/upload');
+                    }
+                });
+
+                // Identify upload button
+                identifyUploadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.uploadedFile) {
+                        this.uploadAudioFile('/identify');
+                    }
+                });
+            }
+
+            handleFileSelection(file) {
+                // Validate file type
+                const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/flac', 'audio/x-m4a', 'audio/ogg', 'audio/webm'];
+                const allowedExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.webm'];
+                const fileName = file.name.toLowerCase();
+                const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+                
+                if (!allowedTypes.includes(file.type) && !hasValidExtension) {
+                    this.showError('Invalid file type. Please upload an audio file (MP3, WAV, FLAC, M4A, OGG, or WEBM).');
+                    return;
+                }
+
+                // Validate file size (16MB max)
+                const maxSize = 16 * 1024 * 1024; // 16MB
+                if (file.size > maxSize) {
+                    this.showError('File too large. Maximum file size is 16MB.');
+                    return;
+                }
+
+                if (file.size === 0) {
+                    this.showError('File is empty. Please select a valid audio file.');
+                    return;
+                }
+
+                // Store the file
+                this.uploadedFile = file;
+
+                // Update UI
+                const uploadArea = document.getElementById('uploadArea');
+                const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+                const uploadFileInfo = document.getElementById('uploadFileInfo');
+                const uploadFileName = document.getElementById('uploadFileName');
+                const uploadFileSize = document.getElementById('uploadFileSize');
+                const clearFileBtn = document.getElementById('clearFileBtn');
+                const analyzeUploadBtn = document.getElementById('analyzeUploadBtn');
+                const identifyUploadBtn = document.getElementById('identifyUploadBtn');
+
+                uploadArea.classList.add('has-file');
+                uploadPlaceholder.style.display = 'none';
+                uploadFileInfo.style.display = 'flex';
+                uploadFileName.textContent = file.name;
+                uploadFileSize.textContent = this.formatFileSize(file.size);
+                
+                clearFileBtn.disabled = false;
+                analyzeUploadBtn.disabled = false;
+                identifyUploadBtn.disabled = false;
+
+                console.log('File selected:', file.name, this.formatFileSize(file.size));
+            }
+
+            clearUploadedFile() {
+                this.uploadedFile = null;
+                document.getElementById('audioFileInput').value = '';
+
+                const uploadArea = document.getElementById('uploadArea');
+                const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+                const uploadFileInfo = document.getElementById('uploadFileInfo');
+                const clearFileBtn = document.getElementById('clearFileBtn');
+                const analyzeUploadBtn = document.getElementById('analyzeUploadBtn');
+                const identifyUploadBtn = document.getElementById('identifyUploadBtn');
+
+                uploadArea.classList.remove('has-file');
+                uploadPlaceholder.style.display = 'flex';
+                uploadFileInfo.style.display = 'none';
+                
+                clearFileBtn.disabled = true;
+                analyzeUploadBtn.disabled = true;
+                identifyUploadBtn.disabled = true;
+            }
+
+            formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+
+            async uploadAudioFile(endpoint) {
+                if (!this.uploadedFile) {
+                    this.showError('No file selected');
+                    return;
+                }
+
+                this.showLoading();
+                this.hideError();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('audio_file', this.uploadedFile);
+
+                    console.log(`Uploading file to ${endpoint}...`);
+
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('Upload successful:', data);
+
+                    this.hideLoading();
+                    
+                    if (endpoint === '/identify') {
+                        this.displayIdentificationResults(data);
+                    } else {
+                        this.displayResults(data);
+                    }
+                    
+                    this.clearUploadedFile();
+
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    this.hideLoading();
+                    this.showError(`Upload failed: ${error.message}`);
+                }
+            }
+
+            uploadRecordedAudio(endpoint) {
                 if (!this.recordedBlob) {
                     this.showError('No recording available');
                     return;
