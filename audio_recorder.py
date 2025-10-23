@@ -143,7 +143,7 @@ class AudioRecorder:
         show_progress: bool = True
     ) -> Tuple[bool, Optional[str]]:
         """
-        Record audio from the microphone.
+        Record audio from the microphone with comprehensive error handling.
         
         Args:
             duration: Recording duration in seconds (default 15.0)
@@ -156,19 +156,51 @@ class AudioRecorder:
             - success: True if recording succeeded, False otherwise
             - filepath: Path to the recorded file, or None if failed
         """
+        # Validate duration
+        if duration <= 0:
+            logging.error("Duration must be positive")
+            if show_progress:
+                print("❌ Error: Duration must be greater than 0 seconds")
+            return False, None
+        
+        if duration > 300:  # 5 minutes max
+            logging.warning(f"Duration {duration}s exceeds recommended maximum (300s)")
+            if show_progress:
+                print(f"⚠️  Warning: Duration {duration}s is very long. Recommended max is 300s")
+        
         try:
             # Generate output filename if not provided
             if output_file is None:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_file = f"recording_{timestamp}.wav"
             
+            # Validate filename
+            if not output_file.endswith('.wav'):
+                logging.warning("Adding .wav extension to filename")
+                output_file = output_file + '.wav'
+            
             # Ensure output directory exists
-            os.makedirs(output_dir, exist_ok=True)
+            try:
+                os.makedirs(output_dir, exist_ok=True)
+            except PermissionError:
+                logging.error(f"Permission denied to create directory: {output_dir}")
+                if show_progress:
+                    print(f"❌ Error: No permission to create directory {output_dir}")
+                    print("💡 Try saving to your home directory or current directory")
+                return False, None
+            except Exception as e:
+                logging.error(f"Failed to create output directory: {e}")
+                if show_progress:
+                    print(f"❌ Error: Could not create output directory: {e}")
+                return False, None
+            
             output_path = os.path.join(output_dir, output_file)
             
             # Check if file already exists
             if os.path.exists(output_path):
                 logging.warning(f"File {output_path} already exists, will overwrite")
+                if show_progress:
+                    print(f"⚠️  File {output_path} already exists and will be overwritten")
             
             # Calculate number of frames
             frames = int(duration * self.sample_rate)
@@ -179,35 +211,103 @@ class AudioRecorder:
                 print("Please speak or play music now.")
                 print("-" * 50)
             
-            # Record audio
-            recording = sd.rec(
-                frames,
-                samplerate=self.sample_rate,
-                channels=self.channels,
-                dtype=self.dtype
-            )
+            # Record audio with error handling
+            try:
+                recording = sd.rec(
+                    frames,
+                    samplerate=self.sample_rate,
+                    channels=self.channels,
+                    dtype=self.dtype
+                )
+            except sd.PortAudioError as e:
+                logging.error(f"PortAudio recording error: {e}")
+                if show_progress:
+                    if "Input overflowed" in str(e):
+                        print("❌ Error: Audio input buffer overflow")
+                        print("💡 Try:")
+                        print("   - Close other audio applications")
+                        print("   - Reduce input volume")
+                        print("   - Use a lower sample rate")
+                    elif "No such device" in str(e) or "device" in str(e).lower():
+                        print("❌ Error: Microphone not found")
+                        print("💡 Try:")
+                        print("   - Check microphone connection")
+                        print("   - Grant microphone permissions")
+                        print("   - Restart the application")
+                    elif "permission" in str(e).lower():
+                        print("❌ Error: Microphone permission denied")
+                        print("💡 Grant microphone access in your system settings")
+                    else:
+                        print(f"❌ Error: {e}")
+                        print("💡 Check your audio device configuration")
+                return False, None
+            except Exception as e:
+                logging.error(f"Unexpected recording error: {e}")
+                if show_progress:
+                    print(f"❌ Error: Recording failed - {e}")
+                return False, None
             
             # Show progress during recording
             if show_progress:
-                self._show_recording_progress(duration)
+                try:
+                    self._show_recording_progress(duration)
+                except KeyboardInterrupt:
+                    logging.info("Recording cancelled by user")
+                    print("\n\n⚠️  Recording cancelled by user")
+                    sd.stop()
+                    return False, None
             
             # Wait for recording to complete
-            sd.wait()
+            try:
+                sd.wait()
+            except KeyboardInterrupt:
+                logging.info("Recording cancelled during wait")
+                print("\n\n⚠️  Recording cancelled")
+                sd.stop()
+                return False, None
             
             # Validate recording
             if not self._validate_recording(recording):
                 logging.error("Recording validation failed")
+                if show_progress:
+                    print("❌ Error: Recording validation failed")
+                    print("💡 Try:")
+                    print("   - Check that your microphone is working")
+                    print("   - Ensure audio is being captured")
+                    print("   - Increase input volume")
                 return False, None
             
-            # Save to file
-            sf.write(output_path, recording, self.sample_rate)
+            # Save to file with error handling
+            try:
+                sf.write(output_path, recording, self.sample_rate)
+            except PermissionError:
+                logging.error(f"Permission denied writing to {output_path}")
+                if show_progress:
+                    print(f"❌ Error: No permission to write to {output_path}")
+                    print("💡 Try saving to a different location")
+                return False, None
+            except Exception as e:
+                logging.error(f"Failed to save recording: {e}")
+                if show_progress:
+                    print(f"❌ Error: Could not save recording - {e}")
+                return False, None
             
             # Verify file was created successfully
             if not os.path.exists(output_path):
                 logging.error(f"Failed to create output file: {output_path}")
+                if show_progress:
+                    print(f"❌ Error: File was not created at {output_path}")
                 return False, None
             
             file_size = os.path.getsize(output_path)
+            
+            # Verify file size is reasonable
+            expected_size = frames * self.channels * 2  # 2 bytes per sample for int16
+            if file_size < expected_size * 0.5:  # File is less than 50% of expected size
+                logging.warning(f"File size ({file_size} bytes) is smaller than expected")
+                if show_progress:
+                    print(f"⚠️  Warning: Recording may be incomplete (file size: {file_size} bytes)")
+            
             logging.info(f"Recording saved successfully: {output_path} ({file_size} bytes)")
             
             if show_progress:
@@ -219,16 +319,37 @@ class AudioRecorder:
             
             return True, output_path
             
+        except KeyboardInterrupt:
+            logging.info("Recording cancelled by user (Ctrl+C)")
+            if show_progress:
+                print("\n\n⚠️  Recording cancelled by user")
+            return False, None
+            
         except sd.PortAudioError as e:
             logging.error(f"PortAudio error during recording: {e}")
-            if "Input overflowed" in str(e):
-                logging.error("Audio input buffer overflow. Try closing other audio applications.")
-            elif "No such device" in str(e):
-                logging.error("Audio device not found. Check your microphone connection.")
+            if show_progress:
+                if "Input overflowed" in str(e):
+                    print("❌ Error: Audio input buffer overflow")
+                    print("💡 Try closing other audio applications")
+                elif "No such device" in str(e):
+                    print("❌ Error: Audio device not found")
+                    print("💡 Check your microphone connection")
+                elif "permission" in str(e).lower():
+                    print("❌ Error: Microphone access denied")
+                    print("💡 Grant microphone permissions in system settings")
+                else:
+                    print(f"❌ Error: {e}")
             return False, None
             
         except Exception as e:
-            logging.error(f"Unexpected error during recording: {e}")
+            logging.error(f"Unexpected error during recording: {e}", exc_info=True)
+            if show_progress:
+                print(f"❌ Error: An unexpected error occurred")
+                print(f"Details: {e}")
+                print("💡 Try:")
+                print("   - Restarting the application")
+                print("   - Checking microphone permissions")
+                print("   - Using a different output directory")
             return False, None
     
     def _show_recording_progress(self, duration: float):
@@ -351,13 +472,23 @@ class AudioRecorder:
 def main():
     """
     Main function for command-line usage of the audio recorder.
+    Enhanced with comprehensive error handling and user guidance.
     """
     print("=" * 60)
     print("MelodySearch - Audio Recorder")
     print("=" * 60)
     
-    # Create recorder instance
-    recorder = AudioRecorder()
+    # Create recorder instance with error handling
+    try:
+        recorder = AudioRecorder()
+    except Exception as e:
+        print(f"\n❌ Error: Failed to initialize audio recorder")
+        print(f"Details: {e}")
+        print("\n💡 Try:")
+        print("   - Installing PortAudio: sudo apt-get install portaudio19-dev")
+        print("   - Checking that sounddevice is installed: pip install sounddevice")
+        print("   - Restarting your system")
+        return 1
     
     # List available input devices
     print("\nAvailable input devices:")
@@ -366,65 +497,155 @@ def main():
         for idx, name, channels in devices:
             print(f"  [{idx}] {name} ({channels} channels)")
     else:
-        print("  No input devices found!")
-        print("  Please check your microphone connection.")
+        print("  ❌ No input devices found!")
+        print("\n💡 Troubleshooting:")
+        print("   - Check that a microphone is connected")
+        print("   - Grant microphone permissions to this application")
+        print("   - On Linux: Check if your user is in the 'audio' group")
+        print("   - Restart your computer and try again")
         return 1
     
     # Test audio device
     print("\nTesting audio device...")
-    if not recorder.test_audio_device():
-        print("⚠️  Warning: Audio device test failed.")
+    try:
+        if not recorder.test_audio_device():
+            print("⚠️  Warning: Audio device test failed")
+            print("\n💡 This could mean:")
+            print("   - Microphone is not capturing audio")
+            print("   - Input volume is too low")
+            print("   - Wrong device is selected as default")
+            
+            response = input("\nContinue anyway? (y/n): ").strip().lower()
+            if response != 'y':
+                print("Recording cancelled.")
+                return 1
+        else:
+            print("✓ Audio device is working")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not test audio device: {e}")
         response = input("Continue anyway? (y/n): ").strip().lower()
         if response != 'y':
             print("Recording cancelled.")
             return 1
     
-    # Get recording parameters
+    # Get recording parameters with validation
     print("\nRecording Configuration:")
-    try:
-        duration_input = input(f"  Duration in seconds (default 15): ").strip()
-        duration = float(duration_input) if duration_input else 15.0
-        
-        if duration <= 0:
-            print("  Error: Duration must be positive")
+    
+    # Get duration
+    max_retries = 3
+    duration = None
+    for attempt in range(max_retries):
+        try:
+            duration_input = input(f"  Duration in seconds (default 15, max 300): ").strip()
+            
+            if not duration_input:
+                duration = 15.0
+                break
+            
+            duration = float(duration_input)
+            
+            if duration <= 0:
+                print("  ❌ Error: Duration must be positive")
+                if attempt < max_retries - 1:
+                    print("  Please try again")
+                continue
+            
+            if duration > 300:  # 5 minutes max
+                print("  ❌ Error: Duration too long (max 300 seconds)")
+                if attempt < max_retries - 1:
+                    print("  Please try again")
+                continue
+            
+            # Valid duration
+            break
+            
+        except ValueError:
+            print("  ❌ Error: Please enter a valid number")
+            if attempt < max_retries - 1:
+                print("  Please try again")
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Cancelled by user")
             return 1
-        if duration > 300:  # 5 minutes max
-            print("  Error: Duration too long (max 300 seconds)")
-            return 1
-    except ValueError:
-        print("  Error: Invalid duration")
+    
+    if duration is None:
+        print("❌ Too many invalid attempts. Exiting.")
         return 1
     
-    output_file = input(f"  Output filename (default: auto-generated): ").strip()
-    if not output_file:
-        output_file = None
-    elif not output_file.endswith('.wav'):
-        output_file += '.wav'
+    # Get output filename
+    try:
+        output_file = input(f"  Output filename (default: auto-generated): ").strip()
+        
+        if not output_file:
+            output_file = None
+        else:
+            # Validate filename
+            if not output_file:
+                output_file = None
+            elif not output_file.endswith('.wav'):
+                output_file += '.wav'
+            
+            # Check for invalid characters
+            invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+            if any(char in output_file for char in invalid_chars):
+                print(f"  ⚠️  Warning: Filename contains invalid characters")
+                print("  Using auto-generated filename instead")
+                output_file = None
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Cancelled by user")
+        return 1
     
     # Record audio
-    success, filepath = recorder.record_with_countdown(
-        duration=duration,
-        countdown=3,
-        output_file=output_file,
-        output_dir="."
-    )
+    print("\n" + "=" * 60)
+    try:
+        success, filepath = recorder.record_with_countdown(
+            duration=duration,
+            countdown=3,
+            output_file=output_file,
+            output_dir="."
+        )
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Recording cancelled by user")
+        return 1
+    except Exception as e:
+        print(f"\n❌ Error: Recording failed unexpectedly")
+        print(f"Details: {e}")
+        print("\n💡 Try:")
+        print("   - Checking microphone permissions")
+        print("   - Using a different microphone")
+        print("   - Restarting the application")
+        return 1
     
     if success and filepath:
         print("\n" + "=" * 60)
         print("✓ Recording completed successfully!")
         print("=" * 60)
-        print(f"\nYou can now use this recording with MelodySearch:")
+        print(f"\n📁 Saved to: {filepath}")
+        print("\nYou can now use this recording with MelodySearch:")
         print(f"  python main.py")
         print(f"  Enter path: {filepath}")
+        print("\nOr identify the song:")
+        print(f"  Use the /identify endpoint to identify this recording")
         return 0
     else:
         print("\n" + "=" * 60)
         print("✗ Recording failed!")
         print("=" * 60)
-        print("\nPlease check:")
-        print("  - Microphone is connected")
-        print("  - Microphone permissions are granted")
-        print("  - No other application is using the microphone")
+        print("\n💡 Common issues and solutions:")
+        print("\n  1. Microphone not connected:")
+        print("     - Check physical connection")
+        print("     - Try a different USB port")
+        print("\n  2. Permission denied:")
+        print("     - Grant microphone access in system settings")
+        print("     - On Linux: Add your user to 'audio' group")
+        print("\n  3. Device already in use:")
+        print("     - Close other applications using the microphone")
+        print("     - Restart audio services")
+        print("\n  4. Driver issues:")
+        print("     - Update audio drivers")
+        print("     - Try a different microphone")
+        print("\n  5. System issues:")
+        print("     - Restart your computer")
+        print("     - Reinstall PortAudio")
         return 1
 
 

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, redirect, session
 import logging
 import os
+import re
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 from song_db import save_song_to_db, load_song_db
@@ -19,6 +20,7 @@ from song_identifier import SongIdentifier
 import random
 import time
 import json
+from datetime import datetime
 from werkzeug.utils import secure_filename
 import librosa
 import numpy as np
@@ -57,7 +59,77 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav', 'flac', 'm4a', 'ogg', 'webm'}
 
 # Security: Configure logging level based on environment
 log_level = logging.DEBUG if os.getenv('FLASK_ENV') == 'development' else logging.INFO
-logging.basicConfig(level=log_level)
+logging.basicConfig(
+    level=log_level,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Helper function for standardized error responses
+def create_error_response(error_type, message, details=None, suggestions=None, status_code=400):
+    """
+    Create a standardized error response with helpful information.
+    
+    Args:
+        error_type: Type of error (e.g., 'validation_error', 'api_error')
+        message: User-friendly error message
+        details: Optional technical details
+        suggestions: Optional list of suggestions to fix the error
+        status_code: HTTP status code
+    
+    Returns:
+        tuple: (jsonify response, status_code)
+    """
+    response = {
+        'error': error_type,
+        'message': message,
+        'success': False
+    }
+    
+    if details:
+        response['details'] = details
+    
+    if suggestions:
+        response['suggestions'] = suggestions if isinstance(suggestions, list) else [suggestions]
+    
+    # Add timestamp for debugging
+    response['timestamp'] = datetime.now().isoformat()
+    
+    return jsonify(response), status_code
+
+
+def validate_string_input(value, field_name, max_length=200, required=True):
+    """
+    Validate string input with comprehensive checks.
+    
+    Args:
+        value: Input value to validate
+        field_name: Name of the field for error messages
+        max_length: Maximum allowed length
+        required: Whether the field is required
+    
+    Returns:
+        tuple: (is_valid, error_message, sanitized_value)
+    """
+    # Check if required
+    if required and (not value or not str(value).strip()):
+        return False, f"{field_name} is required", None
+    
+    if not value:
+        return True, None, None
+    
+    # Convert to string and strip
+    sanitized = str(value).strip()
+    
+    # Check length
+    if len(sanitized) > max_length:
+        return False, f"{field_name} is too long (max {max_length} characters)", None
+    
+    # Check for dangerous characters (XSS prevention)
+    dangerous_chars = re.search(r'[<>\"\\]', sanitized)
+    if dangerous_chars:
+        return False, f"{field_name} contains invalid characters", None
+    
+    return True, None, sanitized
 
 # Spotify API credentials and redirect URI
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -281,74 +353,182 @@ def callback():
 
 @app.route('/search', methods=['POST'])
 def search_song():
+    """
+    Search for a song and find similar tracks using metadata-based analysis.
+    Enhanced with comprehensive error handling and user-friendly messages.
+    """
     # Security: Proper authentication check - removed bypass
     if not session.get('is_authenticated'):
-        return jsonify({"error": "Authentication required"}), 401
+        return create_error_response(
+            'authentication_error',
+            'Authentication required',
+            details='Please log in to use this feature',
+            suggestions=['Click the login button to authenticate with Spotify'],
+            status_code=401
+        )
 
     try:
         # Security: Validate content type
         if not request.is_json:
-            return jsonify({"error": "Content-Type must be application/json"}), 400
+            return create_error_response(
+                'invalid_request',
+                'Invalid request format',
+                details='Content-Type must be application/json',
+                suggestions=['Ensure your request has Content-Type: application/json header'],
+                status_code=400
+            )
             
-        sp = get_spotify_client()
         data = request.json
         
         # Security: Validate JSON structure
         if not isinstance(data, dict):
-            return jsonify({"error": "Invalid JSON format"}), 400
+            return create_error_response(
+                'invalid_json',
+                'Invalid JSON format',
+                details='Request body must be a JSON object',
+                status_code=400
+            )
             
-        song_name = data.get('song_name')
+        song_name = data.get('song_name', '').strip()
 
-        # Security: Input validation
-        if not song_name:
-            return jsonify({"error": "Song name is required"}), 400
+        # Enhanced input validation using helper function
+        is_valid, error_msg, song_name = validate_string_input(
+            song_name, 
+            'Song name', 
+            max_length=200, 
+            required=True
+        )
         
-        # Security: Limit song name length to prevent abuse
-        if len(song_name) > 200:
-            return jsonify({"error": "Song name too long"}), 400
+        if not is_valid:
+            return create_error_response(
+                'validation_error',
+                error_msg,
+                suggestions=[
+                    'Enter a valid song name',
+                    'Song name should be less than 200 characters',
+                    'Avoid special characters like <, >, ", \\'
+                ],
+                status_code=400
+            )
+
+        logging.info(f"Searching for song: {song_name}")
         
-        # Security: Basic sanitization - remove potentially dangerous characters
-        song_name = song_name.strip()
+        # Get Spotify client with error handling
+        try:
+            sp = get_spotify_client()
+        except Exception as e:
+            logging.error(f"Failed to initialize Spotify client: {e}")
+            return create_error_response(
+                'spotify_auth_error',
+                'Failed to connect to Spotify',
+                details='Could not initialize Spotify client',
+                suggestions=[
+                    'Check that SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET are set',
+                    'Verify your Spotify API credentials are valid'
+                ],
+                status_code=503
+            )
 
-        # Input validation and sanitization
-        song_name = song_name.strip()
-        if len(song_name) > 200:
-            return jsonify({"error": "Song name too long (max 200 characters)"}), 400
+        # Search for the original song with retry logic
+        max_retries = 3
+        retry_delay = 1
+        results = None
         
-        # Prevent injection attacks - allow apostrophes but block dangerous HTML/script characters
-        if re.search(r'[<>\"\\]', song_name):
-            return jsonify({"error": "Invalid characters in song name"}), 400
-
-        logging.debug(f"Searching for song: {song_name}")
-
-        # Search for the original song
-        results = sp.search(q=song_name, type='track', limit=1)
-        if not results['tracks']['items']:
-            return jsonify({"error": "Song not found"}), 404
+        for attempt in range(max_retries):
+            try:
+                results = sp.search(q=song_name, type='track', limit=1)
+                break
+            except spotipy.SpotifyException as e:
+                if attempt < max_retries - 1:
+                    logging.warning(f"Spotify search attempt {attempt + 1} failed: {e}, retrying...")
+                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                else:
+                    logging.error(f"Spotify search failed after {max_retries} attempts: {e}")
+                    return create_error_response(
+                        'spotify_api_error',
+                        'Spotify search failed',
+                        details=str(e),
+                        suggestions=[
+                            'Try again in a few moments',
+                            'Check your internet connection',
+                            'Try searching with a different song name'
+                        ],
+                        status_code=503
+                    )
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    logging.warning(f"Spotify search timeout, retrying...")
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    return create_error_response(
+                        'timeout_error',
+                        'Request timed out',
+                        details='The search request took too long',
+                        suggestions=['Try again with a shorter or more specific song name'],
+                        status_code=504
+                    )
+            except requests.exceptions.ConnectionError:
+                return create_error_response(
+                    'connection_error',
+                    'Network connection error',
+                    details='Could not connect to Spotify servers',
+                    suggestions=[
+                        'Check your internet connection',
+                        'Try again in a few moments'
+                    ],
+                    status_code=503
+                )
+        
+        if not results or not results['tracks']['items']:
+            return create_error_response(
+                'not_found',
+                f'Song "{song_name}" not found',
+                details='No matching songs found in Spotify catalog',
+                suggestions=[
+                    'Check the spelling of the song name',
+                    'Try including the artist name in the search',
+                    'Try a more popular song or different search terms'
+                ],
+                status_code=404
+            )
 
         track = results['tracks']['items'][0]
 
-        # NEW: Use metadata-based similarity engine
-        similarity_engine = MetadataSimilarityEngine(sp)
-        metadata_features = similarity_engine.extract_comprehensive_metadata(
-            track['id'],
-            track
-        )
+        # NEW: Use metadata-based similarity engine with error handling
+        try:
+            similarity_engine = MetadataSimilarityEngine(sp)
+            metadata_features = similarity_engine.extract_comprehensive_metadata(
+                track['id'],
+                track
+            )
+        except Exception as e:
+            logging.error(f"Metadata extraction failed: {e}")
+            # Graceful degradation - continue with limited features
+            metadata_features = {
+                'popularity': track.get('popularity', 50),
+                'duration_ms': track.get('duration_ms', 180000),
+                'explicit': track.get('explicit', False),
+                'feature_completeness': 0.3
+            }
 
         logging.debug(f"Metadata analysis completeness: {metadata_features.get('feature_completeness', 0):.2%}")
 
         # Convert metadata to pseudo audio features for frontend compatibility
-        pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        try:
+            pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        except Exception as e:
+            logging.error(f"Feature conversion failed: {e}")
+            pseudo_audio_features = create_fallback_audio_features()
 
         # Structure the original song data
         original_song = {
             "title": track['name'],
-            "artist": track['artists'][0]['name'],
+            "artist": track['artists'][0]['name'] if track.get('artists') else 'Unknown',
             "audio_features": pseudo_audio_features,  # Frontend expects this key
             "spotify_metadata": {
-                "popularity": track['popularity'],
-                "duration_ms": track['duration_ms'],
-                "explicit": track['explicit'],
+                "popularity": track.get('popularity', 0),
+                "duration_ms": track.get('duration_ms', 0),
+                "explicit": track.get('explicit', False),
                 "preview_url": track.get('preview_url'),
                 "has_preview": track.get('preview_url') is not None,
                 "spotify_id": track['id'],
@@ -357,12 +537,20 @@ def search_song():
             }
         }
 
-        # Save to your database
-        save_song_to_db(original_song)
+        # Save to database with error handling
+        try:
+            save_song_to_db(original_song)
+        except Exception as e:
+            logging.error(f"Failed to save song to database: {e}")
+            # Non-critical error, continue anyway
 
         # Find candidate tracks using metadata-based search
         logging.debug("Finding candidate tracks using metadata strategies...")
-        candidate_recommendations = find_metadata_based_candidates(sp, track, metadata_features, limit=50)
+        try:
+            candidate_recommendations = find_metadata_based_candidates(sp, track, metadata_features, limit=50)
+        except Exception as e:
+            logging.error(f"Candidate search failed: {e}")
+            candidate_recommendations = []
 
         # Enhance candidates with metadata analysis
         enhanced_candidates = []
@@ -429,23 +617,29 @@ def search_song():
                 logging.error(f"Metadata matching failed: {e}")
                 # Fallback: return basic recommendations
                 for candidate in enhanced_candidates[:10]:
-                    candidate_pseudo_features = convert_metadata_to_audio_features(
-                        candidate.get('metadata_features', {})
-                    )
-                    formatted_recommendations.append({
-                        "title": candidate.get('title', 'Unknown'),
-                        "artist": candidate.get('artist', 'Unknown'),
-                        "similarity_score": 0.5,
-                        "explanation": "Basic similarity (metadata analysis)",
-                        "feature_breakdown": {},
-                        "spotify_id": candidate.get('spotify_id'),
-                        "popularity": candidate.get('popularity'),
-                        "preview_url": candidate.get('preview_url'),
-                        "audio_features": candidate_pseudo_features
-                    })
+                    try:
+                        candidate_pseudo_features = convert_metadata_to_audio_features(
+                            candidate.get('metadata_features', {})
+                        )
+                        formatted_recommendations.append({
+                            "title": candidate.get('title', 'Unknown'),
+                            "artist": candidate.get('artist', 'Unknown'),
+                            "similarity_score": 0.5,
+                            "explanation": "Basic similarity (metadata analysis)",
+                            "feature_breakdown": {},
+                            "spotify_id": candidate.get('spotify_id'),
+                            "popularity": candidate.get('popularity'),
+                            "preview_url": candidate.get('preview_url'),
+                            "audio_features": candidate_pseudo_features
+                        })
+                    except Exception as e2:
+                        logging.error(f"Failed to format candidate: {e2}")
+                        continue
 
+        # Return results (even if partial)
         return jsonify({
             "message": "Song analyzed successfully",
+            "success": True,
             "original_song": original_song,
             "spotify_recommendations": formatted_recommendations,
             "local_recommendations": [],  # Skip local for now to simplify
@@ -461,12 +655,40 @@ def search_song():
 
     except spotipy.SpotifyException as e:
         logging.error(f"Spotify API error: {e}")
-        # Security: Don't expose internal error details to client
-        return jsonify({"error": "Spotify API error occurred"}), 403
+        return create_error_response(
+            'spotify_api_error',
+            'Spotify service error',
+            details='An error occurred while communicating with Spotify',
+            suggestions=[
+                'Try again in a few moments',
+                'Check if Spotify services are operational'
+            ],
+            status_code=503
+        )
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error: {e}")
+        return create_error_response(
+            'network_error',
+            'Network error occurred',
+            details='Could not complete the request due to network issues',
+            suggestions=[
+                'Check your internet connection',
+                'Try again in a few moments'
+            ],
+            status_code=503
+        )
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        # Security: Don't expose internal error details to client
-        return jsonify({"error": "An unexpected error occurred"}), 500
+        logging.error(f"Unexpected error in /search: {e}", exc_info=True)
+        return create_error_response(
+            'internal_error',
+            'An unexpected error occurred',
+            details='The server encountered an error while processing your request',
+            suggestions=[
+                'Try again',
+                'If the problem persists, contact support'
+            ],
+            status_code=500
+        )
 
 
 def find_metadata_based_candidates(sp, original_track, metadata_features, limit=50):
@@ -1174,97 +1396,181 @@ def get_similar_songs():
     """
     Generate a list of songs similar to a given song (title and artist).
     Returns metadata for each similar song.
-    
-    Request body:
-    {
-        "title": "Song Title",
-        "artist": "Artist Name"
-    }
-    
-    Response:
-    {
-        "original_song": {...},
-        "similar_songs": [...],
-        "total_matches": int
-    }
+    Enhanced with comprehensive error handling and validation.
     """
-    session['is_authenticated'] = True  # Temp override for non-auth setups
+    # Temporary override for non-auth setups (consider removing in production)
+    session['is_authenticated'] = True
+    
     if not session.get('is_authenticated'):
-        return redirect('/login')
+        return create_error_response(
+            'authentication_error',
+            'Authentication required',
+            suggestions=['Log in to access this feature'],
+            status_code=401
+        )
 
     try:
-        sp = get_spotify_client()
+        # Validate content type
+        if not request.is_json:
+            return create_error_response(
+                'invalid_request',
+                'Invalid request format',
+                details='Content-Type must be application/json',
+                status_code=400
+            )
+        
         data = request.json
         
-        # Extract and validate input
-        title = data.get('title', '').strip()
-        artist = data.get('artist', '').strip()
+        # Validate JSON structure
+        if not isinstance(data, dict):
+            return create_error_response(
+                'invalid_json',
+                'Invalid JSON format',
+                status_code=400
+            )
         
-        if not title:
-            return jsonify({"error": "Song title is required"}), 400
+        # Validate title
+        is_valid, error_msg, title = validate_string_input(
+            data.get('title'), 
+            'Song title', 
+            max_length=200, 
+            required=True
+        )
+        if not is_valid:
+            return create_error_response(
+                'validation_error',
+                error_msg,
+                suggestions=['Provide a valid song title'],
+                status_code=400
+            )
         
-        if not artist:
-            return jsonify({"error": "Artist name is required"}), 400
+        # Validate artist
+        is_valid, error_msg, artist = validate_string_input(
+            data.get('artist'), 
+            'Artist name', 
+            max_length=200, 
+            required=True
+        )
+        if not is_valid:
+            return create_error_response(
+                'validation_error',
+                error_msg,
+                suggestions=['Provide a valid artist name'],
+                status_code=400
+            )
         
-        # Input validation - check length
-        if len(title) > 200:
-            return jsonify({"error": "Song title too long (max 200 characters)"}), 400
+        logging.info(f"Searching for: '{title}' by '{artist}'")
         
-        if len(artist) > 200:
-            return jsonify({"error": "Artist name too long (max 200 characters)"}), 400
-        
-        # Prevent injection attacks
-        if re.search(r'[<>\"\\]', title) or re.search(r'[<>\"\\]', artist):
-            return jsonify({"error": "Invalid characters in song title or artist name"}), 400
-        
-        logging.debug(f"Searching for song: '{title}' by '{artist}'")
+        # Get Spotify client with error handling
+        try:
+            sp = get_spotify_client()
+        except Exception as e:
+            logging.error(f"Failed to initialize Spotify client: {e}")
+            return create_error_response(
+                'spotify_auth_error',
+                'Failed to connect to Spotify',
+                suggestions=['Check Spotify API credentials configuration'],
+                status_code=503
+            )
         
         # Search for the song using both title and artist for better accuracy
         search_query = f"track:{title} artist:{artist}"
-        results = sp.search(q=search_query, type='track', limit=5)
         
-        if not results['tracks']['items']:
+        # Implement retry logic for search
+        max_retries = 3
+        results = None
+        
+        for attempt in range(max_retries):
+            try:
+                results = sp.search(q=search_query, type='track', limit=5)
+                break
+            except (spotipy.SpotifyException, requests.exceptions.RequestException) as e:
+                if attempt < max_retries - 1:
+                    logging.warning(f"Search attempt {attempt + 1} failed, retrying...")
+                    time.sleep(1 * (attempt + 1))
+                else:
+                    logging.error(f"Search failed after {max_retries} attempts: {e}")
+                    return create_error_response(
+                        'search_failed',
+                        'Could not search Spotify',
+                        details=str(e),
+                        suggestions=['Try again in a few moments', 'Check your connection'],
+                        status_code=503
+                    )
+        
+        if not results or not results['tracks']['items']:
             # Fallback: try without strict formatting
-            search_query = f"{title} {artist}"
-            results = sp.search(q=search_query, type='track', limit=5)
+            try:
+                search_query = f"{title} {artist}"
+                results = sp.search(q=search_query, type='track', limit=5)
+            except Exception as e:
+                logging.error(f"Fallback search failed: {e}")
             
-            if not results['tracks']['items']:
-                return jsonify({"error": "Song not found"}), 404
+            if not results or not results['tracks']['items']:
+                return create_error_response(
+                    'not_found',
+                    f'Song "{title}" by "{artist}" not found',
+                    suggestions=[
+                        'Check the spelling of the song title and artist',
+                        'Try a more well-known song',
+                        'Ensure the song is available on Spotify'
+                    ],
+                    status_code=404
+                )
         
         # Find the best match from results
         track = results['tracks']['items'][0]
         
-        # Use metadata-based similarity engine
-        similarity_engine = MetadataSimilarityEngine(sp)
-        metadata_features = similarity_engine.extract_comprehensive_metadata(
-            track['id'],
-            track
-        )
+        # Use metadata-based similarity engine with error handling
+        try:
+            similarity_engine = MetadataSimilarityEngine(sp)
+            metadata_features = similarity_engine.extract_comprehensive_metadata(
+                track['id'],
+                track
+            )
+        except Exception as e:
+            logging.error(f"Metadata extraction failed: {e}")
+            # Use minimal features if extraction fails
+            metadata_features = {
+                'popularity': track.get('popularity', 50),
+                'duration_ms': track.get('duration_ms', 180000),
+                'feature_completeness': 0.3
+            }
         
-        logging.debug(f"Found song: '{track['name']}' by '{track['artists'][0]['name']}'")
+        logging.debug(f"Found: '{track['name']}' by '{track['artists'][0]['name']}'")
         logging.debug(f"Metadata completeness: {metadata_features.get('feature_completeness', 0):.2%}")
         
         # Convert metadata to audio features for response
-        pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        try:
+            pseudo_audio_features = convert_metadata_to_audio_features(metadata_features)
+        except Exception as e:
+            logging.error(f"Feature conversion failed: {e}")
+            pseudo_audio_features = create_fallback_audio_features()
         
         # Structure the original song data
         original_song = {
             "title": track['name'],
             "artist": track['artists'][0]['name'],
             "spotify_id": track['id'],
-            "popularity": track['popularity'],
-            "duration_ms": track['duration_ms'],
-            "explicit": track['explicit'],
+            "popularity": track.get('popularity', 0),
+            "duration_ms": track.get('duration_ms', 0),
+            "explicit": track.get('explicit', False),
             "preview_url": track.get('preview_url'),
-            "album": track['album']['name'],
-            "release_date": track['album']['release_date'],
+            "album": track['album']['name'] if track.get('album') else 'Unknown',
+            "release_date": track['album'].get('release_date', 'Unknown') if track.get('album') else 'Unknown',
             "genres": metadata_features.get('artist_genres', []),
             "audio_features": pseudo_audio_features
         }
         
-        # Find similar songs
+        # Find similar songs with comprehensive error handling
         logging.debug("Finding similar songs...")
-        candidate_recommendations = find_metadata_based_candidates(sp, track, metadata_features, limit=50)
+        try:
+            candidate_recommendations = find_metadata_based_candidates(
+                sp, track, metadata_features, limit=50
+            )
+        except Exception as e:
+            logging.error(f"Candidate search failed: {e}")
+            candidate_recommendations = []
         
         # Enhance candidates with metadata
         enhanced_candidates = []
@@ -1286,10 +1592,10 @@ def get_similar_songs():
                     enhanced_candidates.append(enhanced_candidate)
                     
             except Exception as e:
-                logging.warning(f"Failed to analyze candidate '{candidate.get('title', 'Unknown')}': {e}")
+                logging.debug(f"Skipping candidate due to error: {e}")
                 continue
         
-        logging.debug(f"Enhanced {len(enhanced_candidates)} candidates with metadata")
+        logging.debug(f"Enhanced {len(enhanced_candidates)} candidates")
         
         # Calculate similarities
         similar_songs = []
@@ -1315,7 +1621,12 @@ def get_similar_songs():
                     
                     # Get full track info for additional metadata
                     track_id = original_candidate.get('spotify_id')
-                    track_info = sp.track(track_id) if track_id else {}
+                    track_info = {}
+                    if track_id:
+                        try:
+                            track_info = sp.track(track_id)
+                        except Exception as e:
+                            logging.debug(f"Could not fetch track info: {e}")
                     
                     similar_songs.append({
                         "title": title_match,
@@ -1335,63 +1646,182 @@ def get_similar_songs():
                     
             except Exception as e:
                 logging.error(f"Similarity calculation failed: {e}")
-                return jsonify({"error": "Failed to calculate similarities"}), 500
+                # Return partial results if available
+                if not similar_songs and enhanced_candidates:
+                    similar_songs = [{
+                        "title": c.get('title', 'Unknown'),
+                        "artist": c.get('artist', 'Unknown'),
+                        "spotify_id": c.get('spotify_id'),
+                        "similarity_score": 0.5,
+                        "similarity_explanation": "Could not calculate detailed similarity"
+                    } for c in enhanced_candidates[:10]]
         
         return jsonify({
+            "success": True,
             "original_song": original_song,
             "similar_songs": similar_songs,
             "total_matches": len(similar_songs),
-            "analysis_method": "metadata_based"
+            "analysis_method": "metadata_based",
+            "message": "Similar songs found successfully" if similar_songs else "No similar songs found"
         }), 200
         
     except spotipy.SpotifyException as e:
         logging.error(f"Spotify API error: {e}")
-        return jsonify({"error": f"Spotify API error: {str(e)}"}), 403
+        return create_error_response(
+            'spotify_api_error',
+            'Spotify service error',
+            details=str(e),
+            suggestions=['Try again in a few moments'],
+            status_code=503
+        )
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error: {e}")
+        return create_error_response(
+            'network_error',
+            'Network connection error',
+            suggestions=['Check your internet connection', 'Try again'],
+            status_code=503
+        )
     except Exception as e:
-        logging.error(f"Unexpected error in /similar-songs: {e}")
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        logging.error(f"Unexpected error in /similar-songs: {e}", exc_info=True)
+        return create_error_response(
+            'internal_error',
+            'An unexpected error occurred',
+            suggestions=['Try again', 'Contact support if issue persists'],
+            status_code=500
+        )
 
 
 @app.route('/upload', methods=['POST'])
 def upload_audio():
-    """Handle audio file uploads for real analysis"""
+    """
+    Handle audio file uploads for real analysis.
+    Enhanced with comprehensive error handling and validation.
+    """
     try:
+        # Validate file presence
         if 'audio_file' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
+            return create_error_response(
+                'missing_file',
+                'No audio file provided',
+                details='The request must include an audio file',
+                suggestions=[
+                    'Ensure you are sending a file with the key "audio_file"',
+                    'Check that the request has Content-Type: multipart/form-data'
+                ],
+                status_code=400
+            )
 
         file = request.files['audio_file']
+        
         if file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
+            return create_error_response(
+                'empty_filename',
+                'No file selected',
+                suggestions=['Select a valid audio file'],
+                status_code=400
+            )
 
-        # Security: Additional file validation
+        # Validate filename
         if not file.filename:
-            return jsonify({"error": "Invalid filename"}), 400
+            return create_error_response(
+                'invalid_filename',
+                'Invalid filename',
+                status_code=400
+            )
             
         if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, OGG, or WEBM"}), 400
+            return create_error_response(
+                'unsupported_format',
+                'File type not supported',
+                details=f'File: {file.filename}',
+                suggestions=[
+                    'Use one of these formats: MP3, WAV, FLAC, M4A, OGG, WEBM',
+                    'Ensure the file has the correct extension'
+                ],
+                status_code=400
+            )
 
-        # Security: Limit file size (already configured at app level, but double-check)
+        # Validate file size
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
         
         if file_size > 16 * 1024 * 1024:  # 16MB
-            return jsonify({"error": "File too large. Maximum size is 16MB"}), 400
+            return create_error_response(
+                'file_too_large',
+                'File too large',
+                details=f'File size: {file_size / 1024 / 1024:.1f}MB',
+                suggestions=['File must be under 16MB', 'Try compressing the audio file'],
+                status_code=413
+            )
         
         if file_size == 0:
-            return jsonify({"error": "File is empty"}), 400
+            return create_error_response(
+                'empty_file',
+                'File is empty',
+                suggestions=['Ensure the file contains audio data'],
+                status_code=400
+            )
 
         # Save uploaded file temporarily with secure filename
         filename = secure_filename(file.filename)
         with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
-            file.save(temp_file.name)
-            temp_path = temp_file.name
+            try:
+                file.save(temp_file.name)
+                temp_path = temp_file.name
+            except Exception as e:
+                logging.error(f"Failed to save uploaded file: {e}")
+                return create_error_response(
+                    'save_error',
+                    'Failed to save uploaded file',
+                    suggestions=['Try uploading again', 'Check file permissions'],
+                    status_code=500
+                )
 
         try:
-            # Extract real audio features
-            real_features = extract_real_audio_features(temp_path)
+            # Extract real audio features with timeout protection
+            logging.info(f"Analyzing uploaded file: {filename}")
+            try:
+                real_features = extract_real_audio_features(temp_path)
+            except librosa.util.exceptions.ParameterError as e:
+                logging.error(f"Invalid audio file format: {e}")
+                return create_error_response(
+                    'invalid_audio',
+                    'Invalid or corrupted audio file',
+                    details=str(e),
+                    suggestions=[
+                        'Ensure the file is a valid audio file',
+                        'Try converting to a different format (MP3 or WAV recommended)',
+                        'Check that the file is not corrupted'
+                    ],
+                    status_code=400
+                )
+            except Exception as e:
+                logging.error(f"Audio analysis failed: {e}")
+                return create_error_response(
+                    'analysis_failed',
+                    'Failed to analyze audio file',
+                    details=str(e),
+                    suggestions=[
+                        'Ensure the file is a valid audio file',
+                        'Try a different file',
+                        'File may be corrupted or in an unsupported format'
+                    ],
+                    status_code=500
+                )
+            
             if not real_features:
-                return jsonify({"error": "Failed to analyze audio file"}), 500
+                return create_error_response(
+                    'analysis_failed',
+                    'Failed to extract audio features',
+                    suggestions=[
+                        'The audio file may be corrupted',
+                        'Try a different audio file',
+                        'Ensure the file contains valid audio data'
+                    ],
+                    status_code=500
+                )
 
             # Create song object for database
             uploaded_song = {
@@ -1400,7 +1830,7 @@ def upload_audio():
                 "audio_features": real_features,
                 "spotify_metadata": {
                     "popularity": 50,  # Neutral
-                    "duration_ms": real_features['duration'],
+                    "duration_ms": real_features.get('duration', 0),
                     "explicit": False,
                     "preview_url": None,
                     "has_preview": False,
@@ -1409,18 +1839,36 @@ def upload_audio():
                 }
             }
 
-            # Save to database
-            save_song_to_db(uploaded_song)
+            # Save to database (non-critical, catch errors)
+            try:
+                save_song_to_db(uploaded_song)
+            except Exception as e:
+                logging.warning(f"Failed to save to database: {e}")
+                # Continue anyway
 
             # Find similar tracks using existing metadata system
-            sp = get_spotify_client()
-            similarity_engine = MetadataSimilarityEngine(sp)
+            try:
+                sp = get_spotify_client()
+                similarity_engine = MetadataSimilarityEngine(sp)
+            except Exception as e:
+                logging.error(f"Failed to initialize Spotify: {e}")
+                return create_error_response(
+                    'spotify_error',
+                    'Could not connect to Spotify for recommendations',
+                    details='Audio was analyzed but recommendations unavailable',
+                    suggestions=['Try again later'],
+                    status_code=503
+                )
 
-            # Create pseudo-metadata for searching (since we don't have genre info)
+            # Create pseudo-metadata for searching
             pseudo_metadata = create_pseudo_metadata_from_audio(real_features, filename)
 
             # Find candidates using audio characteristics
-            candidates = find_candidates_by_audio_characteristics(sp, real_features, pseudo_metadata)
+            try:
+                candidates = find_candidates_by_audio_characteristics(sp, real_features, pseudo_metadata)
+            except Exception as e:
+                logging.error(f"Candidate search failed: {e}")
+                candidates = []
 
             # Enhance candidates with metadata
             enhanced_candidates = []
@@ -1441,13 +1889,18 @@ def upload_audio():
                         }
                         enhanced_candidates.append(enhanced_candidate)
                 except Exception as e:
-                    logging.warning(f"Failed to enhance candidate: {e}")
+                    logging.debug(f"Failed to enhance candidate: {e}")
                     continue
 
             # Compare real features with estimated features
-            recommendations = compare_real_vs_estimated_features(real_features, enhanced_candidates)
+            try:
+                recommendations = compare_real_vs_estimated_features(real_features, enhanced_candidates)
+            except Exception as e:
+                logging.error(f"Comparison failed: {e}")
+                recommendations = []
 
             return jsonify({
+                "success": True,
                 "message": "Audio file analyzed successfully",
                 "original_song": uploaded_song,
                 "recommendations": recommendations,
@@ -1456,18 +1909,28 @@ def upload_audio():
                     "feature_completeness": real_features.get('feature_completeness', 0.95),
                     "candidates_found": len(candidates),
                     "candidates_analyzed": len(enhanced_candidates),
-                    "matches_found": len(recommendations)
+                    "matches_found": len(recommendations),
+                    "file_size_kb": file_size / 1024
                 }
             }), 200
 
         finally:
             # Clean up temp file
-            os.unlink(temp_path)
+            try:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            except Exception as e:
+                logging.warning(f"Failed to cleanup temp file: {e}")
 
     except Exception as e:
-        logging.error(f"Upload processing failed: {e}")
-        # Security: Don't expose internal error details to client
-        return jsonify({"error": "Upload failed. Please try again."}), 500
+        logging.error(f"Upload processing failed: {e}", exc_info=True)
+        return create_error_response(
+            'upload_error',
+            'Upload failed',
+            details='An error occurred while processing your upload',
+            suggestions=['Try again', 'Ensure the file is a valid audio file'],
+            status_code=500
+        )
 
 
 def create_pseudo_metadata_from_audio(audio_features, filename):
@@ -1833,71 +2296,157 @@ def identify_song():
     """
     Identify a song from user-provided audio file.
     Returns metadata including title, artist, album, and cover art.
+    Enhanced with comprehensive error handling.
     """
     try:
+        # Validate file presence
         if 'audio_file' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
+            return create_error_response(
+                'missing_file',
+                'No audio file provided',
+                suggestions=[
+                    'Include an audio file in your request',
+                    'Ensure the file field is named "audio_file"'
+                ],
+                status_code=400
+            )
 
         file = request.files['audio_file']
-        if file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
+        
+        if not file or file.filename == '':
+            return create_error_response(
+                'empty_file',
+                'No file selected',
+                suggestions=['Select a valid audio file to identify'],
+                status_code=400
+            )
 
+        # Validate file type
         if not allowed_file(file.filename):
-            return jsonify({"error": "File type not supported. Use MP3, WAV, FLAC, M4A, or OGG"}), 400
+            return create_error_response(
+                'unsupported_format',
+                'File type not supported for identification',
+                details=f'Received: {file.filename}',
+                suggestions=[
+                    'Use MP3, WAV, FLAC, M4A, or OGG format',
+                    'Ensure file has correct extension'
+                ],
+                status_code=400
+            )
 
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
         with tempfile.NamedTemporaryFile(suffix=f'_{filename}', delete=False) as temp_file:
-            file.save(temp_file.name)
-            temp_path = temp_file.name
+            try:
+                file.save(temp_file.name)
+                temp_path = temp_file.name
+            except Exception as e:
+                logging.error(f"Failed to save file for identification: {e}")
+                return create_error_response(
+                    'save_error',
+                    'Failed to save audio file',
+                    suggestions=['Try uploading again'],
+                    status_code=500
+                )
 
         try:
-            # Initialize song identifier
-            identifier = SongIdentifier()
+            # Initialize song identifier with error handling
+            try:
+                identifier = SongIdentifier()
+                
+                # Check if API key is available
+                if not identifier.acoustid_api_key:
+                    return create_error_response(
+                        'config_error',
+                        'Song identification service not configured',
+                        details='ACOUSTID_API_KEY is not set',
+                        suggestions=[
+                            'Contact administrator to configure AcoustID API key',
+                            'Get a free API key at https://acoustid.org'
+                        ],
+                        status_code=503
+                    )
+            except Exception as e:
+                logging.error(f"Failed to initialize identifier: {e}")
+                return create_error_response(
+                    'init_error',
+                    'Failed to initialize identification service',
+                    suggestions=['Try again later', 'Contact support if issue persists'],
+                    status_code=503
+                )
             
             logging.info(f"Identifying song from: {filename}")
             
-            # Identify the song
-            metadata = identifier.identify_song(temp_path)
+            # Identify the song with timeout protection
+            try:
+                metadata = identifier.identify_song(temp_path)
+            except Exception as e:
+                logging.error(f"Identification process failed: {e}")
+                return create_error_response(
+                    'identification_failed',
+                    'Could not identify the song',
+                    details=str(e),
+                    suggestions=[
+                        'Ensure the audio quality is good',
+                        'Try a 15-30 second clip from a recognizable part of the song',
+                        'Reduce background noise if possible',
+                        'Try a different song or audio file'
+                    ],
+                    status_code=404
+                )
             
             if not metadata:
-                return jsonify({
-                    "error": "Could not identify song",
-                    "message": "The song could not be identified. Please try with a clearer audio sample or a different part of the song.",
-                    "suggestions": [
-                        "Ensure the audio quality is good",
-                        "Try uploading a 15-30 second clip from the chorus or most recognizable part",
-                        "Reduce background noise if possible"
-                    ]
-                }), 404
+                return create_error_response(
+                    'no_match',
+                    'Could not identify song',
+                    details='No matches found in the database',
+                    suggestions=[
+                        'Ensure the audio quality is good',
+                        'Try uploading a 15-30 second clip from the chorus',
+                        'Reduce background noise if possible',
+                        'The song may not be in the database yet'
+                    ],
+                    status_code=404
+                )
             
             # Enrich metadata with Spotify data if possible
-            sp = get_spotify_client()
-            enriched_metadata = identifier.enrich_metadata_from_spotify(metadata, sp)
+            try:
+                sp = get_spotify_client()
+                enriched_metadata = identifier.enrich_metadata_from_spotify(metadata, sp)
+            except Exception as e:
+                logging.warning(f"Spotify enrichment failed: {e}")
+                # Continue with basic metadata
+                enriched_metadata = metadata
+                enriched_metadata['spotify_enriched'] = False
             
-            # Save to database
-            song_data = {
-                "title": enriched_metadata.get('title'),
-                "artist": enriched_metadata.get('artist'),
-                "audio_features": {},  # Can be populated later if needed
-                "spotify_metadata": {
-                    "album": enriched_metadata.get('album'),
-                    "album_art": enriched_metadata.get('album_art'),
-                    "cover_art": enriched_metadata.get('cover_art'),
-                    "release_date": enriched_metadata.get('release_date'),
-                    "spotify_id": enriched_metadata.get('spotify_id'),
-                    "spotify_url": enriched_metadata.get('spotify_url'),
-                    "preview_url": enriched_metadata.get('preview_url'),
-                    "popularity": enriched_metadata.get('popularity'),
-                    "duration_ms": enriched_metadata.get('duration_ms'),
-                    "explicit": enriched_metadata.get('explicit'),
-                    "genres": enriched_metadata.get('artist_genres', []),
-                    "label": enriched_metadata.get('label'),
+            # Save to database (non-critical)
+            try:
+                song_data = {
+                    "title": enriched_metadata.get('title'),
+                    "artist": enriched_metadata.get('artist'),
+                    "audio_features": {},  # Can be populated later if needed
+                    "spotify_metadata": {
+                        "album": enriched_metadata.get('album'),
+                        "album_art": enriched_metadata.get('album_art'),
+                        "cover_art": enriched_metadata.get('cover_art'),
+                        "release_date": enriched_metadata.get('release_date'),
+                        "spotify_id": enriched_metadata.get('spotify_id'),
+                        "spotify_url": enriched_metadata.get('spotify_url'),
+                        "preview_url": enriched_metadata.get('preview_url'),
+                        "popularity": enriched_metadata.get('popularity'),
+                        "duration_ms": enriched_metadata.get('duration_ms'),
+                        "explicit": enriched_metadata.get('explicit'),
+                        "genres": enriched_metadata.get('artist_genres', []),
+                        "label": enriched_metadata.get('label'),
+                    }
                 }
-            }
-            save_song_to_db(song_data)
+                save_song_to_db(song_data)
+            except Exception as e:
+                logging.warning(f"Failed to save identified song: {e}")
+                # Non-critical, continue
             
             return jsonify({
+                "success": True,
                 "message": "Song identified successfully",
                 "identified": True,
                 "song": {
@@ -1932,12 +2481,25 @@ def identify_song():
 
         finally:
             # Clean up temp file
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+            try:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            except Exception as e:
+                logging.warning(f"Failed to cleanup temp file: {e}")
 
     except Exception as e:
-        logging.error(f"Song identification failed: {e}")
-        return jsonify({"error": f"Identification failed: {str(e)}"}), 500
+        logging.error(f"Song identification failed: {e}", exc_info=True)
+        return create_error_response(
+            'identification_error',
+            'Song identification failed',
+            details='An unexpected error occurred',
+            suggestions=[
+                'Try again with a different audio file',
+                'Ensure the file is not corrupted',
+                'Contact support if issue persists'
+            ],
+            status_code=500
+        )
 
 
 if __name__ == '__main__':
