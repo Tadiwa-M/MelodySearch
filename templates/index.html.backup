@@ -166,12 +166,37 @@
             justify-content: center;
         }
 
+        .file-upload-area {
+            border: 2px dashed #2a2a2a;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .file-upload-area:hover {
+            border-color: #0066cc;
+            background: #0a0a0a;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #0066cc;
+            background: rgba(0, 102, 204, 0.1);
+        }
+
+        .file-upload-area.file-selected {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+        }
+
         .upload-icon {
             font-size: 3rem;
             margin-bottom: 16px;
         }
 
-        .recording-placeholder p {
+        .upload-placeholder p {
             color: #cccccc;
             margin-bottom: 8px;
         }
@@ -1239,6 +1264,176 @@
                 analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
+            setupUpload() {
+                const uploadArea = document.getElementById('fileUploadArea');
+                const fileInput = document.getElementById('audioFile');
+                const uploadBtn = document.getElementById('uploadBtn');
+                const uploadForm = document.getElementById('uploadForm');
+
+                // Click to browse
+                uploadArea.addEventListener('click', () => {
+                    fileInput.click();
+                });
+
+                // File selection
+                fileInput.addEventListener('change', (e) => {
+                    this.handleFileSelection(e.target.files[0]);
+                });
+
+                // Drag and drop
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleFileSelection(files[0]);
+                    }
+                });
+
+                // Form submission
+                uploadForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.uploadAudio();
+                });
+            }
+
+           handleFileSelection(file) {
+                const uploadArea = document.getElementById('fileUploadArea');
+                const uploadBtn = document.getElementById('uploadBtn');
+                const placeholder = uploadArea.querySelector('.upload-placeholder');
+                const fileInput = document.getElementById('audioFile');
+
+                if (!file) {
+                    console.log('No file provided to handleFileSelection');
+                    return;
+                }
+
+                console.log('Handling file:', file.name, file.type, file.size);
+
+                // Check file type
+                const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp4', 'audio/ogg', 'audio/x-m4a'];
+                const allowedExtensions = /\.(mp3|wav|flac|m4a|ogg)$/i;
+
+                if (!allowedTypes.includes(file.type) && !file.name.match(allowedExtensions)) {
+                    this.showError('Please select a valid audio file (MP3, WAV, FLAC, M4A, or OGG)');
+                    console.error('Invalid file type:', file.type, file.name);
+                    return;
+                }
+
+                // Check file size (16MB max)
+                if (file.size > 16 * 1024 * 1024) {
+                    this.showError('File size must be less than 16MB');
+                    return;
+                }
+
+                // IMPORTANT: Manually set the file to the input if it came from drag-drop
+                // Create a new DataTransfer to properly set the file
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                console.log('File set to input, files count:', fileInput.files.length);
+
+                // Update UI
+                uploadArea.classList.add('file-selected');
+                placeholder.innerHTML = `
+                    <div class="upload-icon">🎵</div>
+                    <p><strong>${file.name}</strong></p>
+                    <p class="upload-formats">Ready to analyze (${(file.size / 1024 / 1024).toFixed(1)} MB)</p>
+                `;
+
+                uploadBtn.disabled = false;
+                const displayName = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+                uploadBtn.textContent = `🎵 Analyze ${displayName}`;
+            }
+
+            async uploadAudio() {
+                const fileInput = document.getElementById('audioFile');
+                const uploadBtn = document.getElementById('uploadBtn');
+
+                // Debug: Check if file exists
+                console.log('File input:', fileInput);
+                console.log('Files:', fileInput.files);
+                console.log('Files length:', fileInput.files.length);
+
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    this.showError('Please select an audio file first');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                console.log('Selected file:', file.name, file.size);
+
+                const originalBtnText = uploadBtn.textContent;
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '🔄 Analyzing...';
+
+                this.showLoading(true);
+                this.hideError();
+                this.hideAnalysis();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('audio_file', file);
+
+                    // Debug: Check FormData
+                    console.log('FormData created, sending to /upload');
+
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData
+                        // DO NOT set Content-Type header - browser sets it automatically with boundary
+                    });
+
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('Upload successful:', data);
+
+                    this.displayResults(data);
+                    this.resetUploadForm();
+
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    this.showError(`Upload failed: ${error.message}`);
+                } finally {
+                    this.showLoading(false);
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = originalBtnText;
+                }
+            }
+
+            resetUploadForm() {
+                const uploadArea = document.getElementById('fileUploadArea');
+                const fileInput = document.getElementById('audioFile');
+                const uploadBtn = document.getElementById('uploadBtn');
+                const placeholder = uploadArea.querySelector('.upload-placeholder');
+
+                fileInput.value = '';
+                uploadArea.classList.remove('file-selected');
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '🎵 Analyze My Track';
+
+                placeholder.innerHTML = `
+                    <div class="upload-icon">📁</div>
+                    <p>Drop audio file here or click to browse</p>
+                    <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG</p>
+                `;
+            }
 
             async searchSong() {
                 const songName = document.getElementById('songInput').value.trim();
