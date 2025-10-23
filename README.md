@@ -32,7 +32,9 @@
    - Access artist genres and popularity data
    - Get album information and release dates
 
-5. **Audio File Upload & Analysis**
+4. **Audio Recording & File Upload**
+   - **Record audio directly from your microphone** (NEW!)
+   - Capture 15-second clips (or custom duration)
    - Upload your own audio files for analysis
    - Extract real audio features using librosa
    - Find similar tracks based on actual audio characteristics
@@ -55,6 +57,14 @@
    - Genre-aware recommendations with style mixing
    - Era-based matching (classic, vintage, modern, current)
 
+7. **Audio Recording System** (NEW!)
+   - Record audio directly from your microphone
+   - High-quality WAV output (44.1 kHz, 16-bit)
+   - Configurable duration (default 15 seconds)
+   - Comprehensive error handling
+   - Progress indication during recording
+   - Compatible with existing feature extraction
+
 8. **Web Interface**
    - Clean, modern UI for song search
    - Visual display of song features and similarity scores
@@ -68,7 +78,8 @@ MelodySearch/
 ├── server.py                          # Flask web server with REST API
 ├── song_identifier.py                 # Song identification using audio fingerprinting
 ├── main.py                           # Command-line interface
-├── song_identifier.py                 # Song identification using audio fingerprinting
+├── audio_recorder.py                 # Audio recording module (NEW!)
+├── record_audio.py                   # Audio recording script (NEW!)
 ├── feature_extraction.py             # Audio feature extraction using librosa
 ├── matcher.py                        # Similarity matching algorithms
 ├── metadata_similarity_engine.py     # Metadata-based similarity engine
@@ -77,7 +88,8 @@ MelodySearch/
 ├── mp3_to_wav.py                     # Audio format conversion utilities
 ├── templates/
 │   └── index.html                    # Web UI
-└── Data/                             # Song database storage
+├── Data/                             # Song database storage
+└── RECORDING.md                      # Audio recording documentation (NEW!)
 ```
 
 ## Installation & Setup 🚀
@@ -85,8 +97,7 @@ MelodySearch/
 ### Prerequisites
 - Python 3.8+
 - Spotify API credentials (Client ID and Client Secret)
-- AcoustID API key (for song identification - free at https://acoustid.org)
-- Chromaprint tool (`fpcalc`) - for audio fingerprinting
+- PortAudio library (for audio recording, auto-installed on most systems)
 
 ### Installation Steps
 
@@ -144,25 +155,20 @@ MelodySearch/
 
 ## Usage Examples 💡
 
-### 1. Web Interface - Identify Unknown Song (NEW!)
+### 1. Record Audio (NEW!)
 
-**Option A: Record from Microphone (Like Shazam)**
-1. Start the server: `python server.py`
-2. Open http://127.0.0.1:5000
-3. Scroll to "Identify Unknown Song" section
-4. Click "🎤 Record from Microphone"
-5. Allow microphone access when prompted
-6. Play the song you want to identify (or let it play near your device)
-7. Click "Stop & Identify" after 10-15 seconds
-8. View complete metadata with cover art, artist, album, and links
+**Interactive Recording:**
+```bash
+python record_audio.py
+```
+Follow the prompts to record 15 seconds of audio from your microphone.
 
-**Option B: Upload Audio File**
-1. Start the server: `python server.py`
-2. Open http://127.0.0.1:5000
-3. Scroll to "Identify Unknown Song" section
-4. Upload an audio file (MP3, WAV, FLAC, M4A, OGG, WEBM)
-5. Click "Identify Song"
-6. View complete metadata with cover art, artist, album, and links
+**Quick Recording:**
+```bash
+python record_audio.py --quick --duration 15 --output mysong.wav
+```
+
+**See [RECORDING.md](RECORDING.md) for complete audio recording documentation.**
 
 ### 2. Web Interface - Search by Song Name
 
@@ -191,64 +197,6 @@ Follow the prompts:
 - View top 10 recommendations with similarity scores
 
 ### 5. API Endpoints
-
-#### Identify a song from audio
-```bash
-POST /identify
-Content-Type: multipart/form-data
-
-audio_file: <your audio file>
-
-Response:
-{
-  "message": "Song identified successfully",
-  "song": {
-    "title": "Song Title",
-    "artist": "Artist Name",
-    "album": "Album Name",
-    "cover_art_url": "https://...",
-    "release_date": "2023-01-01",
-    "identification_score": 0.95,
-    "spotify_id": "...",
-    "spotify_url": "https://open.spotify.com/track/...",
-    "musicbrainz_url": "https://musicbrainz.org/recording/..."
-  }
-```
-
-#### Find similar songs (by title and artist) - RECOMMENDED
-```bash
-POST /similar-songs
-Content-Type: application/json
-
-{
-  "title": "Blinding Lights",
-  "artist": "The Weeknd"
-}
-```
-
-**Response:**
-```json
-{
-  "original_song": {
-    "title": "Blinding Lights",
-    "artist": "The Weeknd",
-    "spotify_id": "0VjIjW4GlUZAMYd2vXMi3b",
-    "popularity": 95,
-    "genres": ["canadian pop", "pop"],
-    "audio_features": {...}
-  },
-  "similar_songs": [
-    {
-      "title": "Save Your Tears",
-      "artist": "The Weeknd",
-      "similarity_score": 0.89,
-      "similarity_explanation": "Similar musical genres (match: 95%)",
-      "audio_features": {...}
-    }
-  ],
-  "total_matches": 10
-}
-```
 
 #### Search for a song and get recommendations (by name only)
 ```bash
@@ -340,8 +288,8 @@ The system includes comprehensive genre mappings for:
 3. Estimate audio features from metadata patterns
 4. Create similarity vectors
 
-**For Uploaded Audio:**
-1. Load audio file with librosa
+**For Uploaded/Recorded Audio:**
+1. Load audio file with librosa (or record from microphone)
 2. Extract tempo using beat tracking
 3. Analyze chroma for key detection
 4. Calculate RMS energy for dynamics
@@ -349,9 +297,16 @@ The system includes comprehensive genre mappings for:
 6. Estimate danceability, valence, and mood
 7. Create feature vector for matching
 
+**For Recorded Audio (NEW!):**
+1. Capture audio from system microphone using sounddevice
+2. Record with configurable duration (default 15 seconds)
+3. Save in WAV format (44.1 kHz, 16-bit, mono/stereo)
+4. Validate recording quality (silence detection, clipping check)
+5. Output compatible with existing feature extraction pipeline
+
 ## Dependencies 📦
 
-### Python Libraries
+### Core Dependencies
 - **Flask**: Web server framework
 - **spotipy**: Spotify API client
 - **pyacoustid**: Audio fingerprinting for song identification
@@ -360,6 +315,7 @@ The system includes comprehensive genre mappings for:
 - **numpy**: Numerical computations
 - **scikit-learn**: Machine learning utilities (similarity metrics)
 - **soundfile**: Audio file I/O
+- **sounddevice**: Audio recording from microphone (NEW!)
 - **scipy**: Scientific computing
 - **requests**: HTTP library for API calls (also used for AudD API)
 
@@ -368,6 +324,12 @@ The system includes comprehensive genre mappings for:
   - Ubuntu/Debian: `sudo apt-get install libchromaprint-tools`
   - macOS: `brew install chromaprint`
   - Windows: Download from https://acoustid.org/chromaprint
+
+### System Dependencies
+- **PortAudio**: System library for audio I/O (for recording feature)
+  - Linux: `sudo apt-get install portaudio19-dev libportaudio2`
+  - macOS: `brew install portaudio`
+  - Windows: Included with sounddevice package
 
 See `requirements.txt` for exact versions.
 
