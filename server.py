@@ -357,16 +357,10 @@ def search_song():
     Search for a song and find similar tracks using metadata-based analysis.
     Enhanced with comprehensive error handling and user-friendly messages.
     """
-    # Security: Proper authentication check - removed bypass
-    if not session.get('is_authenticated'):
-        return create_error_response(
-            'authentication_error',
-            'Authentication required',
-            details='Please log in to use this feature',
-            suggestions=['Click the login button to authenticate with Spotify'],
-            status_code=401
-        )
-
+    # Note: Authentication not required for search - uses Spotify Client Credentials
+    # User authentication (OAuth) is only needed for user-specific features (playlists, etc.)
+    # This allows public song search without login, fixing HTTP 401 errors
+    
     try:
         # Security: Validate content type
         if not request.is_json:
@@ -1398,17 +1392,9 @@ def get_similar_songs():
     Returns metadata for each similar song.
     Enhanced with comprehensive error handling and validation.
     """
-    # Temporary override for non-auth setups (consider removing in production)
-    session['is_authenticated'] = True
+    # Note: Authentication not required - uses Spotify Client Credentials
+    # User authentication (OAuth) is only needed for user-specific features
     
-    if not session.get('is_authenticated'):
-        return create_error_response(
-            'authentication_error',
-            'Authentication required',
-            suggestions=['Log in to access this feature'],
-            status_code=401
-        )
-
     try:
         # Validate content type
         if not request.is_json:
