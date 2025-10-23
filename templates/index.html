@@ -546,47 +546,115 @@
 
         <div class="upload-section" style="margin-top: 20px;">
             <h2>🎵 Identify Unknown Song</h2>
-            <p>Record from microphone or upload an audio file to identify the song</p>
+            <p style="margin-bottom: 24px;">Tap to listen and identify any song playing around you</p>
 
             <!-- Microphone Recording Section -->
-            <div style="margin-bottom: 20px;">
-                <button type="button" class="upload-btn" id="recordBtn" 
-                        style="background: #dc3545; margin-bottom: 10px;">
-                    🎤 Record from Microphone
+            <div id="microphoneSection" style="margin-bottom: 24px;">
+                <button type="button" id="recordBtn" 
+                        style="width: 100%; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                               color: white; border: none; border-radius: 16px; font-size: 1.1rem; 
+                               font-weight: 600; cursor: pointer; transition: all 0.3s ease; 
+                               box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                    <span style="font-size: 1.5em; margin-right: 8px;">🎤</span>
+                    <span>Tap to Identify</span>
                 </button>
-                <div id="recordingStatus" style="display: none; padding: 15px; background: #1a1a1a; 
-                     border-radius: 8px; margin-top: 10px; text-align: center;">
-                    <div style="color: #dc3545; font-size: 1.2em; margin-bottom: 10px;">
-                        <span id="recordingIndicator">🔴</span> Recording...
+                
+                <div id="recordingStatus" style="display: none; padding: 24px; background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); 
+                     border-radius: 16px; margin-top: 16px; text-align: center; border: 2px solid #667eea;">
+                    <div style="margin-bottom: 16px;">
+                        <div id="recordingIndicator" style="display: inline-block; width: 16px; height: 16px; 
+                             background: #ef4444; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite;"></div>
+                        <span style="color: #ef4444; font-size: 1em; margin-left: 8px; font-weight: 500;">Listening...</span>
                     </div>
-                    <div id="recordingTimer" style="color: #ffffff; font-size: 1.5em; font-weight: 600; margin-bottom: 10px;">
+                    <div id="recordingTimer" style="color: #ffffff; font-size: 2.5em; font-weight: 700; 
+                         margin-bottom: 20px; font-variant-numeric: tabular-nums;">
                         00:00
                     </div>
-                    <button type="button" class="upload-btn" id="stopRecordBtn" 
-                            style="background: #28a745; max-width: 200px; margin: 0 auto;">
-                        ⏹️ Stop & Identify
+                    <button type="button" id="stopRecordBtn" 
+                            style="padding: 14px 32px; background: #10b981; color: white; border: none; 
+                                   border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; 
+                                   transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);">
+                        <span style="font-size: 1.2em; margin-right: 6px;">⏹</span>
+                        <span>Stop & Identify</span>
                     </button>
                 </div>
             </div>
 
-            <!-- File Upload Section -->
-            <div style="opacity: 0.7; padding-top: 15px; border-top: 1px solid #2a2a2a;">
-                <p style="font-size: 0.9em; color: #888; margin-bottom: 15px;">Or upload a file:</p>
-                <form class="upload-form" id="identifyForm" enctype="multipart/form-data">
-                    <div class="file-upload-area" id="identifyUploadArea">
-                        <input type="file" id="identifyAudioFile" name="audio_file" accept=".mp3,.wav,.flac,.m4a,.ogg" hidden>
-                        <div class="upload-placeholder" id="identifyPlaceholder">
-                            <div class="upload-icon">📁</div>
-                            <p>Drop audio file here or click to browse</p>
-                            <p class="upload-formats">Supports: MP3, WAV, FLAC, M4A, OGG (up to 16MB)</p>
-                        </div>
-                    </div>
-                    <button type="submit" class="upload-btn" id="identifyBtn" disabled style="background: #ff6b35;">
-                        🔍 Identify Song
-                    </button>
-                </form>
+            <!-- Divider -->
+            <div style="position: relative; text-align: center; margin: 32px 0;">
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #2a2a2a;"></div>
+                <span style="position: relative; background: #111111; padding: 0 16px; color: #666; 
+                      font-size: 0.85rem; font-weight: 500;">or upload a file</span>
             </div>
+
+            <!-- File Upload Section -->
+            <form id="identifyForm" enctype="multipart/form-data">
+                <div class="file-upload-area" id="identifyUploadArea" 
+                     style="border: 2px dashed #3a3a3a; border-radius: 16px; padding: 32px; 
+                            text-align: center; cursor: pointer; transition: all 0.3s ease; 
+                            background: #0a0a0a;">
+                    <input type="file" id="identifyAudioFile" name="audio_file" 
+                           accept=".mp3,.wav,.flac,.m4a,.ogg,.webm" hidden>
+                    <div class="upload-placeholder" id="identifyPlaceholder">
+                        <div style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.6;">📁</div>
+                        <p style="color: #ccc; margin-bottom: 8px; font-weight: 500;">Drop audio file here or click to browse</p>
+                        <p style="color: #666; font-size: 0.85rem;">MP3, WAV, FLAC, M4A, OGG, WEBM • Max 16MB</p>
+                    </div>
+                </div>
+                <button type="submit" id="identifyBtn" disabled 
+                        style="width: 100%; margin-top: 16px; padding: 16px; background: #ff6b35; 
+                               color: white; border: none; border-radius: 12px; font-size: 1rem; 
+                               font-weight: 600; cursor: pointer; transition: all 0.2s ease; 
+                               opacity: 0.5; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);">
+                    <span style="font-size: 1.2em; margin-right: 6px;">🔍</span>
+                    <span>Identify Song</span>
+                </button>
+            </form>
         </div>
+
+        <style>
+            @keyframes pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.5; transform: scale(1.1); }
+            }
+            
+            #recordBtn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            }
+            
+            #stopRecordBtn:hover {
+                background: #059669;
+                transform: scale(1.05);
+            }
+            
+            #identifyBtn:not(:disabled) {
+                opacity: 1;
+                cursor: pointer;
+            }
+            
+            #identifyBtn:not(:disabled):hover {
+                background: #ff5722;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(255, 107, 53, 0.5);
+            }
+            
+            .file-upload-area:hover {
+                border-color: #667eea;
+                background: #0f0f0f;
+            }
+            
+            .file-upload-area.dragover {
+                border-color: #667eea;
+                background: rgba(102, 126, 234, 0.1);
+                transform: scale(1.02);
+            }
+            
+            .file-upload-area.file-selected {
+                border-color: #10b981;
+                background: rgba(16, 185, 129, 0.1);
+            }
+        </style>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
