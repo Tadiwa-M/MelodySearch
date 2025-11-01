@@ -22,7 +22,11 @@ A full-stack music discovery web application with Spotify integration that helps
 
 ## Screenshots
 
-*[Add a screenshot of your app here]*
+<img width="1562" height="968" alt="image" src="https://github.com/user-attachments/assets/97f2617a-acb5-423a-977f-217245152cd3" />
+
+<img width="1867" height="877" alt="image" src="https://github.com/user-attachments/assets/97264dcb-ab0b-42cb-83ef-465fbfe47b2f" />
+
+
 
 ## Setup
 
