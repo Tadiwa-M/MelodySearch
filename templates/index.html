@@ -309,10 +309,18 @@
         }
 
         .upload-btn:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
-            background: #535353;
+            background: #3a3a3a !important;
             transform: none;
+            position: relative;
+            border: 1px solid #4a4a4a;
+            color: #888888 !important;
+        }
+
+        .upload-btn:disabled:hover {
+            transform: none !important;
+            background: #3a3a3a !important;
         }
 
         /* Loading */
@@ -798,9 +806,15 @@
         }
 
         .icon-btn.saved {
-            background: #1ed760;
-            opacity: 0.6;
+            background: #0e6b30;
+            opacity: 1;
             cursor: not-allowed;
+            border: 1px solid #1ed760;
+            position: relative;
+        }
+
+        .icon-btn.saved:hover {
+            background: #0e6b30;
         }
 
         .collection-card {
@@ -960,6 +974,127 @@
         .collection-songs-list {
             margin-top: 16px;
         }
+
+        /* Tooltip Styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            color: #1ed760;
+            margin-left: 4px;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 280px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid #2a2a2a;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1a1a1a transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Help section */
+        .help-section {
+            background: #181818;
+            border: 1px solid #282828;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .help-section h3 {
+            color: #1ed760;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .help-section ul {
+            margin: 8px 0 0 20px;
+            color: #b3b3b3;
+        }
+
+        .help-section li {
+            margin-bottom: 6px;
+        }
+
+        .help-toggle {
+            background: none;
+            border: none;
+            color: #1ed760;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: underline;
+            padding: 0;
+            margin-top: 8px;
+        }
+
+        .help-toggle:hover {
+            color: #1fdf64;
+        }
+
+        /* Button descriptions */
+        .button-description {
+            font-size: 0.85rem;
+            color: #888888;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Input character counter */
+        .char-counter {
+            font-size: 0.8rem;
+            color: #666666;
+            text-align: right;
+            margin-top: 4px;
+        }
+
+        .char-counter.warning {
+            color: #ff9800;
+        }
+
+        .char-counter.error {
+            color: #e22134;
+        }
+
+        /* Better disabled button state */
+        .upload-btn:disabled::after {
+            content: attr(data-disabled-reason);
+            display: block;
+            font-size: 0.75rem;
+            margin-top: 4px;
+            color: #888888;
+        }
     </style>
 </head>
 <body>
@@ -970,41 +1105,68 @@
         </div>
 
         <!-- Navigation Tabs -->
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="search">Search</button>
-            <button class="nav-tab" data-tab="library">My Library</button>
-            <button class="nav-tab" data-tab="collections">Collections</button>
+        <div class="nav-tabs" role="tablist" aria-label="Main navigation">
+            <button class="nav-tab active" data-tab="search" role="tab" aria-selected="true" aria-controls="searchPanel">Search</button>
+            <button class="nav-tab" data-tab="library" role="tab" aria-selected="false" aria-controls="libraryPanel">My Library</button>
+            <button class="nav-tab" data-tab="collections" role="tab" aria-selected="false" aria-controls="collectionsPanel">Collections</button>
         </div>
 
         <!-- Search Tab Content -->
-        <div class="tab-content active" data-tab-content="search">
+        <div class="tab-content active" data-tab-content="search" role="tabpanel" id="searchPanel" aria-labelledby="searchTab">
             <div class="search-section">
                 <h2>Search Spotify Catalog</h2>
                 <p>Find similar songs using metadata analysis</p>
                 <form class="search-form" id="searchForm">
-                    <input
-                        type="text"
-                        class="search-input"
-                        id="songInput"
-                        placeholder="Enter song name or artist - song title"
-                        required
-                    >
-                    <button type="submit" class="search-btn" id="searchBtn">
+                    <div style="flex: 1;">
+                        <input
+                            type="text"
+                            class="search-input"
+                            id="songInput"
+                            placeholder="Enter song name or artist - song title"
+                            maxlength="200"
+                            required
+                            aria-label="Search for a song by name or artist"
+                            aria-describedby="searchHelpText"
+                        >
+                        <div class="char-counter" id="searchCharCounter" aria-live="polite">0/200 characters</div>
+                    </div>
+                    <button type="submit" class="search-btn" id="searchBtn" aria-label="Search for song and analyze audio features">
                         Search & Analyze
                     </button>
                 </form>
+                <p id="searchHelpText" style="font-size: 0.85rem; color: #888888; margin-top: 12px;">
+                    💡 Tip: Use format "Artist - Song Title" for best results (e.g., "Daft Punk - Get Lucky")
+                </p>
             </div>
 
             <div class="upload-section">
                 <h2>🎵 Audio Analysis</h2>
                 <p>Record live audio or upload a file to identify songs or find similar tracks</p>
 
+                <!-- Help Section -->
+                <div class="help-section" id="audioHelpSection" style="display: none;">
+                    <h3>📖 How to Use Audio Analysis</h3>
+                    <p><strong>Analyze Recording/Audio:</strong> Extracts musical features (tempo, energy, key, etc.) from your audio to find similar songs based on sound characteristics.</p>
+                    <p style="margin-top: 8px;"><strong>Identify Song:</strong> Recognizes what song is playing by matching it against music databases. Use this to discover the name and artist of unknown tracks.</p>
+                    <h3 style="margin-top: 16px;">🎯 Best Practices for Song Identification:</h3>
+                    <ul>
+                        <li>Use <strong>15-30 seconds</strong> of clear audio from the song</li>
+                        <li>Choose a distinctive part (chorus works best)</li>
+                        <li>Minimize background noise and talking</li>
+                        <li>Ensure good audio quality (avoid distortion)</li>
+                        <li>For recordings, hold device close to the audio source</li>
+                    </ul>
+                </div>
+                <button class="help-toggle" onclick="toggleAudioHelp()" aria-label="Toggle help section">
+                    <span id="audioHelpToggleText">Show Help & Tips</span>
+                </button>
+
                 <!-- Audio Tabs -->
-                <div class="audio-tabs">
-                    <button class="audio-tab active" data-audio-tab="record">
+                <div class="audio-tabs" role="tablist" aria-label="Audio input method">
+                    <button class="audio-tab active" data-audio-tab="record" role="tab" aria-selected="true" aria-controls="recordPanel" aria-label="Record audio from microphone">
                         🎙️ Record Audio
                     </button>
-                    <button class="audio-tab" data-audio-tab="upload">
+                    <button class="audio-tab" data-audio-tab="upload" role="tab" aria-selected="false" aria-controls="uploadPanel" aria-label="Upload audio file from computer">
                         📁 Upload File
                     </button>
                 </div>
@@ -1020,21 +1182,24 @@
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #e22134;">
+                        <button type="button" class="upload-btn" id="recordBtn" style="flex: 1; background: #e22134;" aria-label="Start recording audio">
                             ⏺️ Start Recording
                         </button>
-                        <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #535353;" disabled>
+                        <button type="button" class="upload-btn" id="stopRecordBtn" style="flex: 1; background: #535353;" disabled aria-label="Stop recording audio">
                             ⏹️ Stop Recording
                         </button>
                     </div>
-                    
+
                     <div style="display: flex; gap: 12px; margin-top: 12px;">
-                        <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled>
-                            🔍 Analyze Recording
+                        <button type="button" class="upload-btn" id="analyzeRecordingBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled aria-label="Analyze recording to find similar songs" title="Extracts audio features (tempo, energy, key) to find similar sounding songs">
+                            🔍 Analyze Audio Features
                         </button>
-                        <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled>
-                            🎵 Identify Song
+                        <button type="button" class="upload-btn" id="identifyRecordingBtn" style="flex: 1; background: #9c27b0;" disabled aria-label="Identify what song is playing" title="Recognizes the song name and artist from your recording">
+                            🎵 Identify Song Name
                         </button>
+                    </div>
+                    <div class="button-description">
+                        <strong>Analyze:</strong> Find similar songs | <strong>Identify:</strong> Discover song name
                     </div>
                 </div>
 
@@ -1056,21 +1221,24 @@
                     </div>
                     
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="upload-btn" id="selectFileBtn" style="flex: 1; background: #1ed760; color: #000000;">
+                        <button type="button" class="upload-btn" id="selectFileBtn" style="flex: 1; background: #1ed760; color: #000000;" aria-label="Select audio file to upload">
                             📂 Select File
                         </button>
-                        <button type="button" class="upload-btn" id="clearFileBtn" style="flex: 1; background: #535353;" disabled>
+                        <button type="button" class="upload-btn" id="clearFileBtn" style="flex: 1; background: #535353;" disabled aria-label="Clear selected file">
                             🗑️ Clear
                         </button>
                     </div>
-                    
+
                     <div style="display: flex; gap: 12px; margin-top: 12px;">
-                        <button type="button" class="upload-btn" id="analyzeUploadBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled>
-                            🔍 Analyze Audio
+                        <button type="button" class="upload-btn" id="analyzeUploadBtn" style="flex: 1; background: #1ed760; color: #000000;" disabled aria-label="Analyze uploaded audio to find similar songs" title="Extracts audio features (tempo, energy, key) to find similar sounding songs">
+                            🔍 Analyze Audio Features
                         </button>
-                        <button type="button" class="upload-btn" id="identifyUploadBtn" style="flex: 1; background: #9c27b0;" disabled>
-                            🎵 Identify Song
+                        <button type="button" class="upload-btn" id="identifyUploadBtn" style="flex: 1; background: #9c27b0;" disabled aria-label="Identify what song is in the uploaded file" title="Recognizes the song name and artist from your audio file">
+                            🎵 Identify Song Name
                         </button>
+                    </div>
+                    <div class="button-description">
+                        <strong>Analyze:</strong> Find similar songs | <strong>Identify:</strong> Discover song name
                     </div>
                 </div>
             </div>
@@ -1147,11 +1315,13 @@
                 <form id="createCollectionForm">
                     <div class="form-group">
                         <label for="collectionName">Collection Name *</label>
-                        <input type="text" id="collectionName" required placeholder="e.g., Chill Vibes, Workout Mix">
+                        <input type="text" id="collectionName" required placeholder="e.g., Chill Vibes, Workout Mix" maxlength="100" minlength="1" aria-label="Collection name">
+                        <div class="char-counter" id="collectionNameCounter" aria-live="polite">0/100 characters</div>
                     </div>
                     <div class="form-group">
                         <label for="collectionDescription">Description</label>
-                        <textarea id="collectionDescription" placeholder="Optional description..."></textarea>
+                        <textarea id="collectionDescription" placeholder="Optional description..." maxlength="500" aria-label="Collection description"></textarea>
+                        <div class="char-counter" id="collectionDescCounter" aria-live="polite">0/500 characters</div>
                     </div>
                     <div class="modal-actions">
                         <button type="button" class="action-btn secondary" onclick="closeModal('createCollectionModal')">Cancel</button>
@@ -1197,6 +1367,42 @@
     </div>
 
     <script>
+        // Helper function to toggle audio help
+        function toggleAudioHelp() {
+            const helpSection = document.getElementById('audioHelpSection');
+            const toggleText = document.getElementById('audioHelpToggleText');
+            if (helpSection.style.display === 'none') {
+                helpSection.style.display = 'block';
+                toggleText.textContent = 'Hide Help & Tips';
+            } else {
+                helpSection.style.display = 'none';
+                toggleText.textContent = 'Show Help & Tips';
+            }
+        }
+
+        // Character counter helper
+        function setupCharCounter(inputId, counterId, maxLength) {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(counterId);
+            if (!input || !counter) return;
+
+            const updateCounter = () => {
+                const length = input.value.length;
+                counter.textContent = `${length}/${maxLength} characters`;
+
+                // Update styling based on length
+                counter.classList.remove('warning', 'error');
+                if (length > maxLength * 0.9) {
+                    counter.classList.add('error');
+                } else if (length > maxLength * 0.75) {
+                    counter.classList.add('warning');
+                }
+            };
+
+            input.addEventListener('input', updateCounter);
+            updateCounter();
+        }
+
         class MelodySearchApp {
             constructor() {
                 this.essentia = null;
@@ -1206,11 +1412,19 @@
                 this.recordingTimer = null;
                 this.recordingStartTime = 0;
                 this.uploadedFile = null;
+                this.currentOperation = null; // Track current operation for loading message
                 this.initializeEssentia();
                 this.setupEventListeners();
                 this.setupRecording();
                 this.setupFileUpload();
                 this.setupAudioTabs();
+                this.setupCharCounters();
+            }
+
+            setupCharCounters() {
+                setupCharCounter('songInput', 'searchCharCounter', 200);
+                setupCharCounter('collectionName', 'collectionNameCounter', 100);
+                setupCharCounter('collectionDescription', 'collectionDescCounter', 500);
             }
 
             async initializeEssentia() {
@@ -1304,7 +1518,15 @@
                         
                     } catch (error) {
                         console.error('Error accessing microphone:', error);
-                        this.showError('Could not access microphone. Please grant permission and try again.');
+                        let errorMsg = 'Could not access microphone. Please grant permission and try again.';
+                        if (error.name === 'NotAllowedError') {
+                            errorMsg = '🎤 Microphone access denied. Please check your browser settings to allow microphone access.';
+                        } else if (error.name === 'NotFoundError') {
+                            errorMsg = '🎤 No microphone found. Please connect a microphone and try again.';
+                        } else if (error.name === 'NotReadableError') {
+                            errorMsg = '🎤 Microphone is already in use by another application. Please close other apps using the microphone.';
+                        }
+                        this.showError(errorMsg);
                     }
                 });
                 
@@ -1516,7 +1738,9 @@
                     return;
                 }
 
-                this.showLoading();
+                const operation = endpoint === '/identify' ? 'identify' : 'analyze';
+                this.currentOperation = operation;
+                this.showLoading(operation);
                 this.hideError();
 
                 try {
@@ -1563,7 +1787,9 @@
                     return;
                 }
 
-                this.showLoading();
+                const operation = endpoint === '/identify' ? 'identify' : 'analyze';
+                this.currentOperation = operation;
+                this.showLoading(operation);
                 this.hideError();
 
                 try {
@@ -1658,7 +1884,8 @@
                 const songName = document.getElementById('songInput').value.trim();
                 if (!songName) return;
 
-                this.showLoading(true);
+                this.currentOperation = 'search';
+                this.showLoading('search');
                 this.hideError();
                 this.hideAnalysis();
 
@@ -1816,19 +2043,19 @@
                 const methods = [];
 
                 if (features.primary_source === 'real_audio_analysis') {
-                    methods.push('<span class="method-badge method-upload">Real Audio Analysis</span>');
+                    methods.push('<span class="method-badge method-upload" title="Features extracted from your uploaded audio file - most accurate">Real Audio Analysis</span>');
                 } else if (features.primary_source === 'spotify_analysis') {
-                    methods.push('<span class="method-badge method-spotify">Spotify Audio Analysis</span>');
+                    methods.push('<span class="method-badge method-spotify" title="Official audio analysis from Spotify - highly reliable">Spotify Audio Analysis</span>');
                 } else if (features.primary_source === 'enhanced_metadata_analysis') {
-                    methods.push('<span class="method-badge method-metadata">Enhanced Metadata</span>');
+                    methods.push('<span class="method-badge method-metadata" title="Features derived from song metadata, genre, and artist information">Enhanced Metadata</span>');
                 }
 
                 if (features.secondary_source === 'essentia') {
-                    methods.push('<span class="method-badge method-essentia">Essentia.js Enhanced</span>');
+                    methods.push('<span class="method-badge method-essentia" title="Additional features extracted using Essentia.js audio analysis library">Essentia.js Enhanced</span>');
                 }
 
                 if (features.primary_source === 'fallback') {
-                    methods.push('<span class="method-badge method-fallback">Basic Estimation</span>');
+                    methods.push('<span class="method-badge method-fallback" title="Basic estimated features - may be less accurate">Basic Estimation</span>');
                 }
 
                 methodsContainer.innerHTML = methods.join('');
@@ -1837,44 +2064,70 @@
             displayFeatureAnalysis(features) {
                 const container = document.getElementById('featureAnalysis');
 
+                const tooltips = {
+                    'Tempo': 'The speed of the song measured in beats per minute (BPM). Higher values mean faster songs.',
+                    'Rhythm Stability': 'How consistent the rhythm and tempo are throughout the song.',
+                    'Beat Strength': 'How pronounced and clear the beats are in the song.',
+                    'Time Signature': 'The rhythmic structure - most songs are in 4/4 (four beats per measure).',
+                    'Key': 'The musical key/scale the song is based on (e.g., C Major, A Minor).',
+                    'Key Confidence': 'How confident the analysis is about the detected key.',
+                    'Mode': 'Major keys tend to sound happy/bright, Minor keys tend to sound sad/dark.',
+                    'Energy': 'How intense and active the song feels. High energy = loud, fast, noisy.',
+                    'Valence (Positivity)': 'Musical positiveness. High valence = happy/cheerful, Low valence = sad/angry.',
+                    'Danceability': 'How suitable the song is for dancing based on tempo, rhythm, and beat strength.',
+                    'Loudness': 'Overall volume of the song in decibels. Most tracks range from -60 to 0 dB.',
+                    'Acousticness': 'How acoustic (non-electronic) the song is. High = acoustic guitar, Low = synthesizers.',
+                    'Instrumentalness': 'Predicts if a track contains no vocals. High = instrumental, Low = vocal heavy.',
+                    'Speechiness': 'Detects presence of spoken words. High = podcast/audiobook, Low = music.',
+                    'Liveness': 'Detects audience presence. High = live recording, Low = studio recording.'
+                };
+
                 const rhythmicFeatures = this.createFeatureGroup('Rhythmic Features', {
                     'Tempo': features.tempo && !isNaN(features.tempo) ? `${Math.round(features.tempo)} BPM` : 'Analyzing...',
                     'Rhythm Stability': this.formatPercent(features.rhythm_stability),
                     'Beat Strength': this.formatPercent(features.beat_strength),
                     'Time Signature': `${features.time_signature || 4}/4`
-                });
+                }, tooltips);
 
                 const tonalFeatures = this.createFeatureGroup('Tonal Features', {
                     'Key': this.formatKey(features.key, features.mode),
                     'Key Confidence': this.formatPercent(features.key_confidence || features.genre_confidence),
                     'Mode': features.mode === 1 ? 'Major' : features.mode === 0 ? 'Minor' : 'Unknown'
-                });
+                }, tooltips);
 
                 const energeticFeatures = this.createFeatureGroup('Energy & Mood', {
                     'Energy': this.formatPercent(features.energy),
                     'Valence (Positivity)': this.formatPercent(features.valence),
                     'Danceability': this.formatPercent(features.danceability),
                     'Loudness': features.loudness && !isNaN(features.loudness) ? `${features.loudness.toFixed(1)} dB` : 'Analyzing...'
-                });
+                }, tooltips);
 
                 const timbralFeatures = this.createFeatureGroup('Timbral Characteristics', {
                     'Acousticness': this.formatPercent(features.acousticness),
                     'Instrumentalness': this.formatPercent(features.instrumentalness),
                     'Speechiness': this.formatPercent(features.speechiness),
                     'Liveness': this.formatPercent(features.liveness)
-                });
+                }, tooltips);
 
                 container.innerHTML = rhythmicFeatures + tonalFeatures + energeticFeatures + timbralFeatures;
             }
 
-            createFeatureGroup(title, features) {
+            createFeatureGroup(title, features, tooltips = {}) {
                 const items = Object.entries(features)
-                    .map(([key, value]) => `
-                        <div class="feature-item">
-                            <span>${key}</span>
-                            <span class="feature-value">${value}</span>
-                        </div>
-                    `).join('');
+                    .map(([key, value]) => {
+                        const tooltip = tooltips[key] ? `
+                            <span class="tooltip">ⓘ
+                                <span class="tooltiptext">${tooltips[key]}</span>
+                            </span>
+                        ` : '';
+
+                        return `
+                            <div class="feature-item">
+                                <span>${key}${tooltip}</span>
+                                <span class="feature-value">${value}</span>
+                            </div>
+                        `;
+                    }).join('');
 
                 return `
                     <div class="feature-group">
@@ -1891,6 +2144,17 @@
                     container.innerHTML = '<p style="color: #888888;">No recommendations found. Try a different song!</p>';
                     return;
                 }
+
+                // Add explanation for similarity score
+                const explanationHtml = `
+                    <div style="background: #1a1a1a; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 3px solid #1ed760;">
+                        <p style="color: #b3b3b3; font-size: 0.9rem; margin: 0;">
+                            <strong style="color: #1ed760;">💡 About Match Scores:</strong>
+                            The percentage shows how similar each song is based on musical features like tempo, energy, key, and mood.
+                            Higher scores (80%+) = very similar, Medium scores (60-80%) = moderately similar, Lower scores = loosely similar but still interesting!
+                        </p>
+                    </div>
+                `;
 
                 const html = recommendations.map((rec) => {
                     const title = rec.title || rec.name || 'Unknown Title';
@@ -1932,7 +2196,7 @@
                 `;
                 }).join('');
 
-                container.innerHTML = html;
+                container.innerHTML = explanationHtml + html;
             }
 
             displayFeatureBreakdown(breakdown) {
@@ -2005,20 +2269,22 @@
                 return `${keyName} ${modeName}`.trim();
             }
 
-            showLoading(show, message = 'Analyzing audio features...') {
+            showLoading(operation = 'analyze') {
                 const loadingDiv = document.getElementById('loading');
-                if (typeof show === 'string') {
-                    message = show;
-                    show = true;
-                }
-                if (show) {
-                    loadingDiv.querySelector('p').textContent = message;
-                }
-                loadingDiv.style.display = show ? 'block' : 'none';
+                const messages = {
+                    'search': '🔍 Searching Spotify catalog and analyzing features...',
+                    'analyze': '🎵 Analyzing audio features to find similar songs...',
+                    'identify': '🎯 Identifying song and matching against database...',
+                    'upload': '📤 Uploading and processing audio file...'
+                };
+
+                const message = messages[operation] || messages['analyze'];
+                loadingDiv.querySelector('p').textContent = message;
+                loadingDiv.style.display = 'block';
             }
 
             hideLoading() {
-                this.showLoading(false);
+                document.getElementById('loading').style.display = 'none';
             }
 
             showError(message) {
