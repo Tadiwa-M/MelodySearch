@@ -1109,6 +1109,9 @@
             <button class="nav-tab active" data-tab="search" role="tab" aria-selected="true" aria-controls="searchPanel">Search</button>
             <button class="nav-tab" data-tab="library" role="tab" aria-selected="false" aria-controls="libraryPanel">My Library</button>
             <button class="nav-tab" data-tab="collections" role="tab" aria-selected="false" aria-controls="collectionsPanel">Collections</button>
+            <button class="nav-tab" data-tab="now-playing" role="tab" aria-selected="false" aria-controls="nowPlayingPanel">Now Playing</button>
+            <button class="nav-tab" data-tab="recently-played" role="tab" aria-selected="false" aria-controls="recentlyPlayedPanel">Recently Played</button>
+            <button class="nav-tab" data-tab="mood-board" role="tab" aria-selected="false" aria-controls="moodBoardPanel">Mood Board</button>
         </div>
 
         <!-- Search Tab Content -->
@@ -1301,6 +1304,63 @@
                 </div>
                 <div id="collectionsList">
                     <!-- Collections will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Now Playing Tab Content -->
+        <div class="tab-content" data-tab-content="now-playing">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>Now Playing</h2>
+                        <p class="library-stats" id="nowPlayingStatus">Checking...</p>
+                    </div>
+                    <button class="action-btn" id="refreshNowPlayingBtn" onclick="window.nowPlayingManager.loadNowPlaying()">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="nowPlayingContent">
+                    <!-- Now playing content will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Played Tab Content -->
+        <div class="tab-content" data-tab-content="recently-played">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>Recently Played</h2>
+                        <p class="library-stats" id="recentlyPlayedStats">Loading...</p>
+                    </div>
+                    <button class="action-btn" id="refreshRecentlyPlayedBtn" onclick="window.recentlyPlayedManager.loadRecentlyPlayed()">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="recentlyPlayedList">
+                    <!-- Recently played tracks will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Mood Board Tab Content -->
+        <div class="tab-content" data-tab-content="mood-board">
+            <div class="library-section">
+                <div class="library-header">
+                    <div>
+                        <h2>Your Mood Board</h2>
+                        <p class="library-stats" id="moodBoardStats">Generated from your listening history</p>
+                    </div>
+                    <button class="action-btn" id="refreshMoodBoardBtn" onclick="window.moodBoardManager.loadMoodBoard()">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="moodAnalysis" style="margin-bottom: 2rem;">
+                    <!-- Mood analysis will be shown here -->
+                </div>
+                <div id="moodBoardGrid">
+                    <!-- Mood board images will be populated here -->
                 </div>
             </div>
         </div>
@@ -2363,6 +2423,16 @@
                     this.loadLibrary();
                 } else if (tabName === 'collections') {
                     this.loadCollections();
+                } else if (tabName === 'now-playing') {
+                    window.nowPlayingManager.loadNowPlaying();
+                    window.nowPlayingManager.startAutoRefresh();
+                } else if (tabName === 'recently-played') {
+                    window.recentlyPlayedManager.loadRecentlyPlayed();
+                } else if (tabName === 'mood-board') {
+                    window.moodBoardManager.loadMoodBoard();
+                } else {
+                    // Stop auto-refresh when switching away from now-playing
+                    window.nowPlayingManager.stopAutoRefresh();
                 }
             }
 
@@ -2797,6 +2867,338 @@
                 }
             `;
             document.head.appendChild(style);
+
+            // Now Playing Manager
+            class NowPlayingManager {
+                constructor() {
+                    this.refreshInterval = null;
+                }
+
+                async loadNowPlaying() {
+                    try {
+                        document.getElementById('nowPlayingStatus').textContent = 'Loading...';
+                        const response = await fetch('/now-playing');
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to fetch now playing');
+                        }
+
+                        this.displayNowPlaying(data);
+                    } catch (error) {
+                        console.error('Error loading now playing:', error);
+                        document.getElementById('nowPlayingContent').innerHTML = `
+                            <div class="empty-state">
+                                <p>${error.message || 'Failed to load currently playing track'}</p>
+                                <p>Please make sure you are logged in and have Spotify playing.</p>
+                            </div>
+                        `;
+                        document.getElementById('nowPlayingStatus').textContent = 'Error loading';
+                    }
+                }
+
+                displayNowPlaying(data) {
+                    const container = document.getElementById('nowPlayingContent');
+
+                    if (!data.is_playing) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <p>🎵 No music currently playing</p>
+                                <p>Start playing music on Spotify and refresh to see it here!</p>
+                            </div>
+                        `;
+                        document.getElementById('nowPlayingStatus').textContent = 'Nothing playing';
+                        return;
+                    }
+
+                    const track = data.track;
+                    const progressPercent = (data.progress_ms / track.duration_ms) * 100;
+                    const progressMin = Math.floor(data.progress_ms / 60000);
+                    const progressSec = Math.floor((data.progress_ms % 60000) / 1000);
+                    const durationMin = Math.floor(track.duration_ms / 60000);
+                    const durationSec = Math.floor((track.duration_ms % 60000) / 1000);
+
+                    container.innerHTML = `
+                        <div class="now-playing-card" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 2rem; margin-top: 1rem;">
+                            <div style="display: flex; gap: 2rem; align-items: start;">
+                                <img src="${track.album_art}" alt="${track.album}"
+                                     style="width: 200px; height: 200px; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                        <span style="background: #1db954; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600;">
+                                            🎵 Now Playing
+                                        </span>
+                                        ${track.explicit ? '<span style="background: #e13428; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem;">E</span>' : ''}
+                                    </div>
+                                    <h2 style="font-size: 2rem; margin: 0 0 0.5rem 0; color: white;">${track.name}</h2>
+                                    <p style="font-size: 1.3rem; color: #b3b3b3; margin: 0 0 1rem 0;">${track.artist}</p>
+                                    <p style="font-size: 1rem; color: #7f7f7f; margin: 0 0 1.5rem 0;">${track.album}</p>
+
+                                    <div style="margin-bottom: 1rem;">
+                                        <div style="background: #404040; height: 6px; border-radius: 3px; overflow: hidden;">
+                                            <div style="background: #1db954; height: 100%; width: ${progressPercent}%; transition: width 0.3s;"></div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; color: #b3b3b3; font-size: 0.85rem;">
+                                            <span>${progressMin}:${progressSec.toString().padStart(2, '0')}</span>
+                                            <span>${durationMin}:${durationSec.toString().padStart(2, '0')}</span>
+                                        </div>
+                                    </div>
+
+                                    ${data.device ? `
+                                        <div style="display: flex; gap: 1rem; margin-top: 1rem; font-size: 0.9rem; color: #b3b3b3;">
+                                            <span>📱 ${data.device.name}</span>
+                                            <span>🔀 ${data.shuffle_state ? 'On' : 'Off'}</span>
+                                            <span>🔁 ${data.repeat_state === 'off' ? 'Off' : data.repeat_state === 'track' ? 'Track' : 'Playlist'}</span>
+                                        </div>
+                                    ` : ''}
+
+                                    <div style="margin-top: 1.5rem;">
+                                        <a href="${track.spotify_url}" target="_blank" class="action-btn" style="display: inline-block; text-decoration: none;">
+                                            Open in Spotify
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('nowPlayingStatus').textContent = `Playing: ${track.name}`;
+                }
+
+                startAutoRefresh() {
+                    this.stopAutoRefresh();
+                    this.refreshInterval = setInterval(() => {
+                        const currentTab = document.querySelector('.tab-content.active');
+                        if (currentTab && currentTab.dataset.tabContent === 'now-playing') {
+                            this.loadNowPlaying();
+                        }
+                    }, 10000); // Refresh every 10 seconds
+                }
+
+                stopAutoRefresh() {
+                    if (this.refreshInterval) {
+                        clearInterval(this.refreshInterval);
+                        this.refreshInterval = null;
+                    }
+                }
+            }
+
+            // Recently Played Manager
+            class RecentlyPlayedManager {
+                constructor() {
+                    this.tracks = [];
+                }
+
+                async loadRecentlyPlayed() {
+                    try {
+                        document.getElementById('recentlyPlayedStats').textContent = 'Loading...';
+                        const response = await fetch('/recently-played');
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to fetch recently played');
+                        }
+
+                        this.tracks = data.tracks;
+                        this.displayRecentlyPlayed();
+                    } catch (error) {
+                        console.error('Error loading recently played:', error);
+                        document.getElementById('recentlyPlayedList').innerHTML = `
+                            <div class="empty-state">
+                                <p>${error.message || 'Failed to load recently played tracks'}</p>
+                                <p>Please make sure you are logged in with Spotify.</p>
+                            </div>
+                        `;
+                        document.getElementById('recentlyPlayedStats').textContent = 'Error loading';
+                    }
+                }
+
+                displayRecentlyPlayed() {
+                    const container = document.getElementById('recentlyPlayedList');
+                    document.getElementById('recentlyPlayedStats').textContent = `${this.tracks.length} tracks`;
+
+                    if (this.tracks.length === 0) {
+                        container.innerHTML = '<div class="empty-state"><p>No recently played tracks found</p></div>';
+                        return;
+                    }
+
+                    container.innerHTML = this.tracks.map((track, index) => {
+                        const playedDate = new Date(track.played_at);
+                        const timeAgo = this.getTimeAgo(playedDate);
+
+                        return `
+                            <div class="song-card" style="animation: fadeIn 0.3s ease ${index * 0.05}s both;">
+                                <img src="${track.album_art}" alt="${track.album}" class="song-artwork">
+                                <div class="song-details">
+                                    <div class="song-info">
+                                        <div class="song-title">${track.name} ${track.explicit ? '<span style="background: #e13428; color: white; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem;">E</span>' : ''}</div>
+                                        <div class="song-artist">${track.artist}</div>
+                                        <div class="song-meta" style="color: #888; font-size: 0.85rem; margin-top: 0.25rem;">
+                                            ${track.album} • ${timeAgo}
+                                        </div>
+                                    </div>
+                                    <div class="song-actions">
+                                        <a href="${track.spotify_url}" target="_blank" class="icon-btn" title="Open in Spotify">
+                                            🎵
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                getTimeAgo(date) {
+                    const seconds = Math.floor((new Date() - date) / 1000);
+
+                    if (seconds < 60) return 'just now';
+                    const minutes = Math.floor(seconds / 60);
+                    if (minutes < 60) return `${minutes}m ago`;
+                    const hours = Math.floor(minutes / 60);
+                    if (hours < 24) return `${hours}h ago`;
+                    const days = Math.floor(hours / 24);
+                    if (days < 7) return `${days}d ago`;
+                    const weeks = Math.floor(days / 7);
+                    if (weeks < 4) return `${weeks}w ago`;
+                    return date.toLocaleDateString();
+                }
+            }
+
+            // Mood Board Manager
+            class MoodBoardManager {
+                constructor() {
+                    this.moodData = null;
+                }
+
+                async loadMoodBoard() {
+                    try {
+                        document.getElementById('moodBoardStats').textContent = 'Loading...';
+                        const response = await fetch('/mood-board');
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            throw new Error(data.message || 'Failed to generate mood board');
+                        }
+
+                        this.moodData = data;
+                        this.displayMoodBoard();
+                    } catch (error) {
+                        console.error('Error loading mood board:', error);
+                        document.getElementById('moodBoardGrid').innerHTML = `
+                            <div class="empty-state">
+                                <p>${error.message || 'Failed to generate mood board'}</p>
+                                <p>Please make sure you are logged in and have some listening history.</p>
+                            </div>
+                        `;
+                        document.getElementById('moodBoardStats').textContent = 'Error loading';
+                    }
+                }
+
+                displayMoodBoard() {
+                    const { mood_analysis, album_art, generated_at } = this.moodData;
+
+                    // Display mood analysis
+                    const analysisContainer = document.getElementById('moodAnalysis');
+                    const moodEmoji = this.getMoodEmoji(mood_analysis);
+
+                    analysisContainer.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 2rem; color: white;">
+                            <div style="text-align: center; font-size: 4rem; margin-bottom: 1rem;">${moodEmoji}</div>
+                            <h3 style="text-align: center; margin: 0 0 1.5rem 0; font-size: 1.5rem;">Your Music Mood</h3>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(mood_analysis.valence * 100)}%</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Positivity</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(mood_analysis.energy * 100)}%</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Energy</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(mood_analysis.danceability * 100)}%</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Danceability</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(mood_analysis.tempo)} BPM</div>
+                                    <div style="font-size: 0.85rem; opacity: 0.9;">Tempo</div>
+                                </div>
+                            </div>
+
+                            ${mood_analysis.mood_tags.length > 0 ? `
+                                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 1rem;">
+                                    ${mood_analysis.mood_tags.map(tag => `
+                                        <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem;">
+                                            ${tag}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+
+                            ${mood_analysis.top_genres.length > 0 ? `
+                                <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 1rem; margin-top: 1rem;">
+                                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem;">Top Genres:</div>
+                                    <div style="font-size: 1rem;">${mood_analysis.top_genres.join(' • ')}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    // Display album art grid
+                    const gridContainer = document.getElementById('moodBoardGrid');
+                    document.getElementById('moodBoardStats').textContent = `Generated from ${this.moodData.track_count} tracks`;
+
+                    if (album_art.length === 0) {
+                        gridContainer.innerHTML = '<div class="empty-state"><p>No album artwork found</p></div>';
+                        return;
+                    }
+
+                    gridContainer.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                            ${album_art.map((item, index) => `
+                                <div style="position: relative; overflow: hidden; border-radius: 8px; aspect-ratio: 1; animation: fadeIn 0.5s ease ${index * 0.05}s both; cursor: pointer; transition: transform 0.3s;"
+                                     onmouseover="this.style.transform='scale(1.05)'"
+                                     onmouseout="this.style.transform='scale(1)'">
+                                    <img src="${item.url}" alt="${item.track}"
+                                         style="width: 100%; height: 100%; object-fit: cover;">
+                                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 1rem 0.75rem 0.75rem; color: white;">
+                                        <div style="font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            ${item.track}
+                                        </div>
+                                        <div style="font-size: 0.75rem; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            ${item.artist}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                getMoodEmoji(analysis) {
+                    if (analysis.energy > 0.7 && analysis.valence > 0.6) return '🎉';
+                    if (analysis.energy > 0.7 && analysis.valence < 0.4) return '⚡';
+                    if (analysis.energy < 0.3 && analysis.valence > 0.6) return '😌';
+                    if (analysis.energy < 0.3 && analysis.valence < 0.4) return '😔';
+                    if (analysis.danceability > 0.7) return '💃';
+                    if (analysis.acousticness > 0.6) return '🎸';
+                    return '🎵';
+                }
+            }
+
+            // Initialize managers
+            window.nowPlayingManager = new NowPlayingManager();
+            window.recentlyPlayedManager = new RecentlyPlayedManager();
+            window.moodBoardManager = new MoodBoardManager();
+
+            // Add fadeIn animation
+            const fadeInStyle = document.createElement('style');
+            fadeInStyle.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `;
+            document.head.appendChild(fadeInStyle);
         });
     </script>
 </body>

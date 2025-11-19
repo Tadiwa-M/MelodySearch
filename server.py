@@ -139,7 +139,7 @@ SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5000/
 # Validate required credentials
 if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
     raise RuntimeError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables must be set")
-SCOPE = 'user-read-private user-read-email'
+SCOPE = 'user-read-private user-read-email user-read-currently-playing user-read-playback-state user-read-recently-played user-top-read user-library-read'
 CACHE_PATH = '.cache'
 
 
@@ -2488,12 +2488,286 @@ def identify_song():
         )
 
 
+@app.route('/now-playing', methods=['GET'])
+def get_now_playing():
+    """Get the user's currently playing track"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                suggestions=['Please login with Spotify first'],
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+
+        # Get current playback
+        current = sp.current_playback()
+
+        if not current or not current.get('item'):
+            return jsonify({
+                "success": True,
+                "is_playing": False,
+                "message": "No track currently playing"
+            }), 200
+
+        track = current['item']
+
+        # Format the response
+        result = {
+            "success": True,
+            "is_playing": current.get('is_playing', False),
+            "track": {
+                "id": track['id'],
+                "name": track['name'],
+                "artist": ', '.join([artist['name'] for artist in track['artists']]),
+                "artists": [{"name": artist['name'], "id": artist['id']} for artist in track['artists']],
+                "album": track['album']['name'],
+                "album_art": track['album']['images'][0]['url'] if track['album']['images'] else None,
+                "spotify_url": track['external_urls']['spotify'],
+                "preview_url": track.get('preview_url'),
+                "duration_ms": track['duration_ms'],
+                "popularity": track.get('popularity'),
+                "explicit": track.get('explicit', False)
+            },
+            "progress_ms": current.get('progress_ms', 0),
+            "device": {
+                "name": current['device']['name'],
+                "type": current['device']['type']
+            } if current.get('device') else None,
+            "shuffle_state": current.get('shuffle_state', False),
+            "repeat_state": current.get('repeat_state', 'off')
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching now playing: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to fetch currently playing track',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/recently-played', methods=['GET'])
+def get_recently_played():
+    """Get the user's recently played tracks"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                suggestions=['Please login with Spotify first'],
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+
+        # Get recently played tracks (limit 50)
+        limit = request.args.get('limit', 50, type=int)
+        limit = min(limit, 50)  # Cap at 50
+
+        results = sp.current_user_recently_played(limit=limit)
+
+        tracks = []
+        for item in results.get('items', []):
+            track = item['track']
+            tracks.append({
+                "id": track['id'],
+                "name": track['name'],
+                "artist": ', '.join([artist['name'] for artist in track['artists']]),
+                "artists": [{"name": artist['name'], "id": artist['id']} for artist in track['artists']],
+                "album": track['album']['name'],
+                "album_art": track['album']['images'][0]['url'] if track['album']['images'] else None,
+                "spotify_url": track['external_urls']['spotify'],
+                "preview_url": track.get('preview_url'),
+                "duration_ms": track['duration_ms'],
+                "popularity": track.get('popularity'),
+                "explicit": track.get('explicit', False),
+                "played_at": item['played_at']
+            })
+
+        return jsonify({
+            "success": True,
+            "tracks": tracks,
+            "total": len(tracks)
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching recently played: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to fetch recently played tracks',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/mood-board', methods=['GET'])
+def get_mood_board():
+    """Generate a mood board based on user's listening history and top tracks"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                suggestions=['Please login with Spotify first'],
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+
+        # Get user's top tracks (mix of short, medium, and long term)
+        top_tracks_short = sp.current_user_top_tracks(limit=10, time_range='short_term')
+        top_tracks_medium = sp.current_user_top_tracks(limit=10, time_range='medium_term')
+
+        # Get recently played
+        recently_played = sp.current_user_recently_played(limit=20)
+
+        # Collect all track IDs for audio features analysis
+        track_ids = []
+        all_tracks = []
+
+        # Process top tracks
+        for item in top_tracks_short.get('items', []):
+            track_ids.append(item['id'])
+            all_tracks.append(item)
+
+        for item in top_tracks_medium.get('items', []):
+            if item['id'] not in track_ids:
+                track_ids.append(item['id'])
+                all_tracks.append(item)
+
+        # Process recently played
+        for item in recently_played.get('items', []):
+            track = item['track']
+            if track['id'] not in track_ids:
+                track_ids.append(track['id'])
+                all_tracks.append(track)
+
+        # Get audio features for mood analysis
+        audio_features = []
+        if track_ids:
+            # Spotify API allows max 100 IDs at once
+            for i in range(0, len(track_ids), 100):
+                batch = track_ids[i:i+100]
+                features = sp.audio_features(batch)
+                audio_features.extend([f for f in features if f])
+
+        # Analyze mood characteristics
+        if audio_features:
+            avg_valence = sum(f['valence'] for f in audio_features) / len(audio_features)
+            avg_energy = sum(f['energy'] for f in audio_features) / len(audio_features)
+            avg_danceability = sum(f['danceability'] for f in audio_features) / len(audio_features)
+            avg_tempo = sum(f['tempo'] for f in audio_features) / len(audio_features)
+            avg_acousticness = sum(f['acousticness'] for f in audio_features) / len(audio_features)
+        else:
+            avg_valence = 0.5
+            avg_energy = 0.5
+            avg_danceability = 0.5
+            avg_tempo = 120
+            avg_acousticness = 0.5
+
+        # Determine mood categories
+        mood_tags = []
+        if avg_valence > 0.6:
+            mood_tags.append("happy")
+            mood_tags.append("positive")
+        elif avg_valence < 0.4:
+            mood_tags.append("melancholic")
+            mood_tags.append("emotional")
+
+        if avg_energy > 0.7:
+            mood_tags.append("energetic")
+            mood_tags.append("powerful")
+        elif avg_energy < 0.3:
+            mood_tags.append("calm")
+            mood_tags.append("relaxing")
+
+        if avg_danceability > 0.7:
+            mood_tags.append("danceable")
+            mood_tags.append("groovy")
+
+        if avg_acousticness > 0.6:
+            mood_tags.append("acoustic")
+            mood_tags.append("organic")
+
+        # Get top genres
+        top_artists_ids = list(set([artist['id'] for track in all_tracks for artist in track['artists']]))[:20]
+        genres = []
+
+        if top_artists_ids:
+            # Get artist details for genres
+            for i in range(0, len(top_artists_ids), 50):
+                batch = top_artists_ids[i:i+50]
+                artists = sp.artists(batch)
+                for artist in artists.get('artists', []):
+                    if artist and artist.get('genres'):
+                        genres.extend(artist['genres'])
+
+        # Count genre frequency
+        genre_counts = {}
+        for genre in genres:
+            genre_counts[genre] = genre_counts.get(genre, 0) + 1
+
+        # Get top 5 genres
+        top_genres = sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_genres = [g[0] for g in top_genres]
+
+        # Collect album artwork for visual mood
+        album_images = []
+        for track in all_tracks[:15]:  # Top 15 tracks
+            if track.get('album', {}).get('images'):
+                album_images.append({
+                    "url": track['album']['images'][0]['url'],
+                    "track": track['name'],
+                    "artist": ', '.join([a['name'] for a in track['artists']])
+                })
+
+        # Build response
+        result = {
+            "success": True,
+            "mood_analysis": {
+                "valence": round(avg_valence, 2),
+                "energy": round(avg_energy, 2),
+                "danceability": round(avg_danceability, 2),
+                "tempo": round(avg_tempo, 2),
+                "acousticness": round(avg_acousticness, 2),
+                "mood_tags": mood_tags,
+                "top_genres": top_genres
+            },
+            "album_art": album_images,
+            "track_count": len(all_tracks),
+            "generated_at": datetime.now().isoformat()
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logging.error(f"Error generating mood board: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to generate mood board',
+            details=str(e),
+            status_code=500
+        )
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     # Security: Never run debug mode in production
     flask_env = os.getenv('FLASK_ENV', 'production')
     debug = flask_env == 'development'
-    
+
     if debug:
         logging.warning("Running in DEBUG mode. This should NEVER be used in production!")
     
