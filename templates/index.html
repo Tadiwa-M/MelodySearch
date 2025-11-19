@@ -1099,9 +1099,20 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>MelodySearch</h1>
-            <p>Melody Search: Discover New Music Everyday</p>
+        <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>MelodySearch</h1>
+                <p>Melody Search: Discover New Music Everyday</p>
+            </div>
+            <div id="authControls" style="display: flex; align-items: center; gap: 1rem;">
+                <span id="authStatus" style="font-size: 0.9rem; color: #888;"></span>
+                <button id="loginBtn" class="action-btn" onclick="window.location.href='/login'" style="display: none;">
+                    🎵 Connect Spotify
+                </button>
+                <button id="logoutBtn" class="action-btn secondary" onclick="handleLogout()" style="display: none;">
+                    Logout
+                </button>
+            </div>
         </div>
 
         <!-- Navigation Tabs -->
@@ -2800,9 +2811,45 @@
         // Global library manager instance
         let libraryManager;
 
+        // Logout handler
+        function handleLogout() {
+            window.location.href = '/logout';
+        }
+
+        // Check authentication status
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/auth-status');
+                const data = await response.json();
+
+                const loginBtn = document.getElementById('loginBtn');
+                const logoutBtn = document.getElementById('logoutBtn');
+                const authStatus = document.getElementById('authStatus');
+
+                if (data.authenticated) {
+                    loginBtn.style.display = 'none';
+                    logoutBtn.style.display = 'block';
+                    authStatus.textContent = `Logged in${data.user?.display_name ? ' as ' + data.user.display_name : ''}`;
+                    authStatus.style.color = '#1db954';
+                } else {
+                    loginBtn.style.display = 'block';
+                    logoutBtn.style.display = 'none';
+                    authStatus.textContent = 'Not connected to Spotify';
+                    authStatus.style.color = '#888';
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                document.getElementById('loginBtn').style.display = 'block';
+                document.getElementById('logoutBtn').style.display = 'none';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const app = new MelodySearchApp();
             libraryManager = new LibraryManager();
+
+            // Check authentication status on page load
+            checkAuthStatus();
 
             // Add save buttons to recommendations
             const originalDisplayRecommendations = app.displayRecommendations.bind(app);
@@ -2887,10 +2934,11 @@
                         this.displayNowPlaying(data);
                     } catch (error) {
                         console.error('Error loading now playing:', error);
+                        const isAuthError = error.message.includes('authenticated');
                         document.getElementById('nowPlayingContent').innerHTML = `
                             <div class="empty-state">
                                 <p>${error.message || 'Failed to load currently playing track'}</p>
-                                <p>Please make sure you are logged in and have Spotify playing.</p>
+                                ${isAuthError ? '<p><strong>Please connect your Spotify account using the button in the top right corner.</strong></p>' : '<p>Please make sure you have Spotify playing.</p>'}
                             </div>
                         `;
                         document.getElementById('nowPlayingStatus').textContent = 'Error loading';
@@ -3002,10 +3050,11 @@
                         this.displayRecentlyPlayed();
                     } catch (error) {
                         console.error('Error loading recently played:', error);
+                        const isAuthError = error.message.includes('authenticated');
                         document.getElementById('recentlyPlayedList').innerHTML = `
                             <div class="empty-state">
                                 <p>${error.message || 'Failed to load recently played tracks'}</p>
-                                <p>Please make sure you are logged in with Spotify.</p>
+                                ${isAuthError ? '<p><strong>Please connect your Spotify account using the button in the top right corner.</strong></p>' : '<p>Please make sure you have some listening history.</p>'}
                             </div>
                         `;
                         document.getElementById('recentlyPlayedStats').textContent = 'Error loading';
@@ -3083,10 +3132,11 @@
                         this.displayMoodBoard();
                     } catch (error) {
                         console.error('Error loading mood board:', error);
+                        const isAuthError = error.message.includes('authenticated');
                         document.getElementById('moodBoardGrid').innerHTML = `
                             <div class="empty-state">
                                 <p>${error.message || 'Failed to generate mood board'}</p>
-                                <p>Please make sure you are logged in and have some listening history.</p>
+                                ${isAuthError ? '<p><strong>Please connect your Spotify account using the button in the top right corner.</strong></p>' : '<p>Please make sure you have some listening history.</p>'}
                             </div>
                         `;
                         document.getElementById('moodBoardStats').textContent = 'Error loading';
