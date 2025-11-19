@@ -2665,6 +2665,7 @@ def get_mood_board():
 
         # Get recently played tracks
         all_tracks = []
+        artist_ids = []
         try:
             recently_played = sp.current_user_recently_played(limit=20)
             for item in recently_played.get('items', []):
@@ -2672,10 +2673,15 @@ def get_mood_board():
                 # Create search keywords from track name and artist
                 keywords = f"{track['name']} {track['artists'][0]['name']}"
 
+                # Collect artist IDs for fetching artist images
+                if track['artists'][0]['id']:
+                    artist_ids.append(track['artists'][0]['id'])
+
                 all_tracks.append({
                     'id': track['id'],
                     'name': track['name'],
                     'artist': track['artists'][0]['name'],
+                    'artist_id': track['artists'][0]['id'],
                     'album': track['album']['name'],
                     'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
                     'keywords': keywords,
@@ -2695,15 +2701,39 @@ def get_mood_board():
                 "message": "No listening history found yet. Start listening to music on Spotify!"
             }), 200
 
-        # For now, use album artwork as the aesthetic images
-        # In production, you would integrate with Pinterest API or Unsplash API
+        # Fetch artist images for variety
+        artist_images = {}
+        if artist_ids:
+            try:
+                # Remove duplicates and limit
+                unique_artist_ids = list(set(artist_ids))[:10]
+                artists_data = sp.artists(unique_artist_ids)
+                for artist in artists_data.get('artists', []):
+                    if artist and artist.get('images'):
+                        artist_images[artist['id']] = artist['images'][0]['url']
+            except Exception as e:
+                logging.warning(f"Could not fetch artist images: {e}")
+
+        # Create aesthetic image collection mixing album art and artist photos
         images = []
-        for track in all_tracks[:15]:  # Limit to 15 for aesthetic grid
-            if track['album_art']:
+        for idx, track in enumerate(all_tracks[:15]):  # Limit to 15 for aesthetic grid
+            # Alternate between album artwork and artist images for variety
+            if idx % 3 == 0 and track['artist_id'] in artist_images:
+                # Every 3rd image, use artist photo
+                images.append({
+                    'url': artist_images[track['artist_id']],
+                    'title': track['artist'],
+                    'artist': track['artist'],
+                    'type': 'artist',
+                    'keywords': track['keywords']
+                })
+            elif track['album_art']:
+                # Use album artwork
                 images.append({
                     'url': track['album_art'],
                     'title': track['name'],
                     'artist': track['artist'],
+                    'type': 'album',
                     'keywords': track['keywords']
                 })
 
