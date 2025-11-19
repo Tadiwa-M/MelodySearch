@@ -2663,33 +2663,57 @@ def get_mood_board():
         auth_manager = get_auth_manager()
         sp = spotipy.Spotify(auth_manager=auth_manager)
 
-        # Get user's top tracks (mix of short, medium, and long term)
-        top_tracks_short = sp.current_user_top_tracks(limit=10, time_range='short_term')
-        top_tracks_medium = sp.current_user_top_tracks(limit=10, time_range='medium_term')
-
-        # Get recently played
-        recently_played = sp.current_user_recently_played(limit=20)
-
         # Collect all track IDs for audio features analysis
         track_ids = []
         all_tracks = []
 
-        # Process top tracks
-        for item in top_tracks_short.get('items', []):
-            track_ids.append(item['id'])
-            all_tracks.append(item)
-
-        for item in top_tracks_medium.get('items', []):
-            if item['id'] not in track_ids:
+        # Try to get user's top tracks (may not be available for new accounts)
+        try:
+            top_tracks_short = sp.current_user_top_tracks(limit=10, time_range='short_term')
+            for item in top_tracks_short.get('items', []):
                 track_ids.append(item['id'])
                 all_tracks.append(item)
+        except Exception as e:
+            logging.warning(f"Could not fetch short-term top tracks: {e}")
 
-        # Process recently played
-        for item in recently_played.get('items', []):
-            track = item['track']
-            if track['id'] not in track_ids:
-                track_ids.append(track['id'])
-                all_tracks.append(track)
+        try:
+            top_tracks_medium = sp.current_user_top_tracks(limit=10, time_range='medium_term')
+            for item in top_tracks_medium.get('items', []):
+                if item['id'] not in track_ids:
+                    track_ids.append(item['id'])
+                    all_tracks.append(item)
+        except Exception as e:
+            logging.warning(f"Could not fetch medium-term top tracks: {e}")
+
+        # Get recently played - this should always work if user has listened to anything
+        try:
+            recently_played = sp.current_user_recently_played(limit=50)
+            for item in recently_played.get('items', []):
+                track = item['track']
+                if track['id'] not in track_ids:
+                    track_ids.append(track['id'])
+                    all_tracks.append(track)
+        except Exception as e:
+            logging.error(f"Could not fetch recently played: {e}")
+
+        # Check if we have any tracks at all
+        if not all_tracks:
+            return jsonify({
+                "success": True,
+                "mood_analysis": {
+                    "valence": 0.5,
+                    "energy": 0.5,
+                    "danceability": 0.5,
+                    "tempo": 120,
+                    "acousticness": 0.5,
+                    "mood_tags": [],
+                    "top_genres": []
+                },
+                "album_art": [],
+                "track_count": 0,
+                "generated_at": datetime.now().isoformat(),
+                "message": "No listening history found yet. Start listening to music on Spotify to generate your mood board!"
+            }), 200
 
         # Get audio features for mood analysis
         audio_features = []

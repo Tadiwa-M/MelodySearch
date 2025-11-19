@@ -3144,7 +3144,22 @@
                 }
 
                 displayMoodBoard() {
-                    const { mood_analysis, album_art, generated_at } = this.moodData;
+                    const { mood_analysis, album_art, generated_at, track_count, message } = this.moodData;
+
+                    // Check if no listening history
+                    if (track_count === 0 || album_art.length === 0) {
+                        document.getElementById('moodAnalysis').innerHTML = `
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 3rem; color: white; text-align: center;">
+                                <div style="font-size: 4rem; margin-bottom: 1rem;">🎵</div>
+                                <h3 style="margin: 0 0 1rem 0; font-size: 1.5rem;">Your Mood Board Awaits!</h3>
+                                <p style="opacity: 0.9; margin: 0;">${message || 'Start listening to music on Spotify to generate your personalized mood board!'}</p>
+                                <p style="opacity: 0.8; margin-top: 1rem; font-size: 0.9rem;">Tip: Listen to at least a few songs on Spotify, then refresh this page.</p>
+                            </div>
+                        `;
+                        document.getElementById('moodBoardGrid').innerHTML = '';
+                        document.getElementById('moodBoardStats').textContent = 'No data yet';
+                        return;
+                    }
 
                     // Display mood analysis
                     const analysisContainer = document.getElementById('moodAnalysis');
