@@ -344,9 +344,46 @@ def login():
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
-    get_auth_manager().get_access_token(code)
+    auth_manager = get_auth_manager()
+    token_info = auth_manager.get_access_token(code)
+    session['token_info'] = token_info
     session['is_authenticated'] = True
     return redirect('/')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    if os.path.exists(CACHE_PATH):
+        os.remove(CACHE_PATH)
+    return redirect('/')
+
+
+@app.route('/auth-status', methods=['GET'])
+def auth_status():
+    """Check if user is authenticated with Spotify"""
+    is_authenticated = session.get('is_authenticated', False)
+    token_info = session.get('token_info')
+
+    if is_authenticated and token_info:
+        # Try to get user info
+        try:
+            auth_manager = get_auth_manager()
+            sp = spotipy.Spotify(auth_manager=auth_manager)
+            user_info = sp.current_user()
+            return jsonify({
+                'authenticated': True,
+                'user': {
+                    'display_name': user_info.get('display_name'),
+                    'email': user_info.get('email')
+                }
+            })
+        except Exception as e:
+            logging.error(f"Error checking auth status: {e}")
+            session.clear()
+            return jsonify({'authenticated': False})
+
+    return jsonify({'authenticated': False})
 
 
 # Replace your search route with this clean metadata-only version
