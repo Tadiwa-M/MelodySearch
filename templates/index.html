@@ -1284,7 +1284,7 @@
             color: #888;
         }
 
-        .back-btn, .refresh-btn {
+        .back-btn, .refresh-btn, .icon-btn {
             background: none;
             border: none;
             color: #ffffff;
@@ -1298,12 +1298,17 @@
             flex-shrink: 0;
         }
 
-        .back-btn:hover, .refresh-btn:hover {
+        .back-btn:hover, .refresh-btn:hover, .icon-btn:hover {
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .back-btn:active, .refresh-btn:active {
+        .back-btn:active, .refresh-btn:active, .icon-btn:active {
             transform: scale(0.95);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
         }
 
         .mood-board-scroll {
@@ -1840,11 +1845,27 @@
                         <h2>Your Mood Board</h2>
                         <p id="moodBoardStats">Generated from your listening history</p>
                     </div>
-                    <button class="refresh-btn" onclick="window.moodBoardManager.loadMoodBoard()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                        </svg>
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="icon-btn" onclick="window.moodBoardManager.showSavedBoards()" title="My Saved Boards">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" onclick="window.moodBoardManager.shareMoodBoard()" title="Share Board">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                        </button>
+                        <button class="icon-btn" onclick="window.moodBoardManager.loadMoodBoard()" title="Refresh">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <div id="moodBoardGrid" class="mood-board-scroll">
                     <!-- Mood board images will be populated here -->
@@ -3732,6 +3753,186 @@
                     }, 2000);
                 }
 
+                async shareMoodBoard() {
+                    if (!this.moodData || !this.moodData.images || this.moodData.images.length === 0) {
+                        alert('Please load your mood board first!');
+                        return;
+                    }
+
+                    try {
+                        const boardName = prompt('Name your mood board:', 'My Mood Board');
+                        if (!boardName) return;
+
+                        const response = await fetch('/mood-board/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: boardName,
+                                images: this.moodData.images,
+                                tracks: this.moodData.tracks || []
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            // Copy share URL to clipboard
+                            if (navigator.clipboard) {
+                                await navigator.clipboard.writeText(data.share_url);
+                                this.showNotification('✓ Share link copied to clipboard!');
+                            } else {
+                                // Fallback for older browsers
+                                prompt('Share this link:', data.share_url);
+                            }
+                        } else {
+                            alert(data.message || 'Failed to save mood board');
+                        }
+                    } catch (error) {
+                        console.error('Error sharing mood board:', error);
+                        alert('Please login to share mood boards');
+                    }
+                }
+
+                async showSavedBoards() {
+                    try {
+                        const response = await fetch('/mood-board/my-boards');
+                        const data = await response.json();
+
+                        if (!data.success) {
+                            alert('Please login to view saved boards');
+                            return;
+                        }
+
+                        if (data.boards.length === 0) {
+                            alert('You haven\'t saved any mood boards yet! Click share to create one.');
+                            return;
+                        }
+
+                        // Display saved boards in a simple list
+                        const boardList = data.boards.map((board, i) =>
+                            `${i + 1}. ${board.name} (${board.image_count} images) - ${new Date(board.created_at).toLocaleDateString()}`
+                        ).join('\n');
+
+                        alert('Your Saved Boards:\n\n' + boardList + '\n\nNote: Full board viewer coming soon!');
+                    } catch (error) {
+                        console.error('Error loading saved boards:', error);
+                        alert('Please login to view saved boards');
+                    }
+                }
+
+                showNotification(message) {
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: linear-gradient(135deg, #1db954, #1ed760);
+                        color: white;
+                        padding: 1rem 1.5rem;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        z-index: 10000;
+                        animation: slideIn 0.3s ease;
+                    `;
+                    notification.textContent = message;
+                    document.body.appendChild(notification);
+
+                    setTimeout(() => {
+                        notification.style.animation = 'fadeOut 0.3s ease';
+                        setTimeout(() => notification.remove(), 300);
+                    }, 2000);
+                }
+
+                setupInfiniteScroll() {
+                    const scrollContainer = document.getElementById('moodBoardGrid');
+                    if (!scrollContainer) return;
+
+                    let isLoading = false;
+                    let page = 1;
+
+                    scrollContainer.addEventListener('scroll', async () => {
+                        const scrollTop = scrollContainer.scrollTop;
+                        const scrollHeight = scrollContainer.scrollHeight;
+                        const clientHeight = scrollContainer.clientHeight;
+
+                        // Check if user scrolled near bottom (within 200px)
+                        if (scrollHeight - scrollTop - clientHeight < 200 && !isLoading) {
+                            isLoading = true;
+                            page++;
+
+                            // Load more images
+                            await this.loadMoreImages(page);
+
+                            isLoading = false;
+                        }
+                    });
+                }
+
+                async loadMoreImages(page) {
+                    // Generate more images by fetching new searches with different keywords
+                    try {
+                        const moreImages = await this.loadMoodBoard(true, page);
+
+                        if (moreImages && moreImages.length > 0) {
+                            // Append new images to existing grid
+                            const masonryGrid = document.querySelector('.masonry-grid');
+                            if (masonryGrid) {
+                                moreImages.forEach((item, index) => {
+                                    const isUnsplash = item.type === 'unsplash';
+                                    const isArtist = item.type === 'artist';
+                                    const photographer = item.photographer || null;
+                                    const photographerUrl = item.photographer_url || '#';
+                                    const heights = ['250px', '320px', '280px', '350px', '300px', '270px'];
+                                    const height = heights[index % heights.length];
+                                    const totalImages = this.moodData.images.length;
+
+                                    const newItem = document.createElement('div');
+                                    newItem.className = 'masonry-item';
+                                    newItem.style.animation = `fadeIn 0.6s ease ${index * 0.08}s both`;
+                                    newItem.dataset.imageId = totalImages + index;
+                                    newItem.innerHTML = `
+                                        <div class="masonry-card" style="height: ${height};">
+                                            <img src="${item.thumb_url || item.url}"
+                                                 data-full="${item.url}"
+                                                 alt="${item.title || 'Mood board image'}"
+                                                 loading="lazy">
+
+                                            <div class="masonry-overlay">
+                                                <div class="masonry-actions">
+                                                    <button class="pin-btn" onclick="window.moodBoardManager.saveToCollection(${totalImages + index})" title="Save to collection">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                <div class="masonry-info">
+                                                    <div class="masonry-title">${item.title || item.related_track || 'Aesthetic'}</div>
+                                                    <div class="masonry-subtitle">${item.artist || item.related_artist || ''}</div>
+                                                    ${isUnsplash && photographer ? `
+                                                        <div class="masonry-credit">
+                                                            <span>Photo by </span>
+                                                            <a href="${photographerUrl}"
+                                                               target="_blank"
+                                                               rel="noopener noreferrer">${photographer}</a>
+                                                        </div>
+                                                    ` : ''}
+                                                    ${isArtist ? '<span class="badge-artist">Artist</span>' : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                    masonryGrid.appendChild(newItem);
+                                });
+
+                                // Add new images to moodData
+                                this.moodData.images.push(...moreImages);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading more images:', error);
+                    }
+                }
+
                 enterFullscreen() {
                     // On mobile, make mood board full-screen
                     if (window.innerWidth <= 768) {
@@ -3739,6 +3940,9 @@
                         // Scroll to top for immersive experience
                         window.scrollTo(0, 0);
                     }
+
+                    // Setup infinite scroll
+                    this.setupInfiniteScroll();
                 }
 
                 exitFullscreen() {
