@@ -12,6 +12,11 @@ from library_manager import (
     remove_song_from_collection, get_library_stats
 )
 from image_service import get_image_service
+from mood_board_manager import (
+    save_mood_board, load_mood_board, get_user_mood_boards,
+    delete_mood_board, add_image_to_board, remove_image_from_board,
+    generate_share_link
+)
 from flask_session import Session
 import requests
 import tempfile
@@ -2780,6 +2785,213 @@ def get_mood_board():
             details=str(e),
             status_code=500
         )
+
+
+@app.route('/mood-board/custom-search', methods=['POST'])
+def custom_mood_board_search():
+    """Custom search for mood board images by user-defined query"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        count = min(int(data.get('count', 15)), 30)  # Max 30 images
+        sources = data.get('sources')  # Optional: ['unsplash', 'pexels', 'pixabay']
+
+        if not query:
+            return create_error_response(
+                'validation_error',
+                'Search query is required',
+                status_code=400
+            )
+
+        image_service = get_image_service()
+        images = image_service.search_images(query, count=count, sources=sources)
+
+        return jsonify({
+            "success": True,
+            "images": images,
+            "query": query,
+            "count": len(images),
+            "sources_used": list(set(img.get('source', 'unknown') for img in images))
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error in custom mood board search: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to search images',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/mood-board/save', methods=['POST'])
+def save_user_mood_board():
+    """Save a mood board collection"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+        user_info = sp.current_user()
+        user_id = user_info['id']
+
+        data = request.get_json()
+        images = data.get('images', [])
+        tracks = data.get('tracks', [])
+        board_name = data.get('name')
+
+        if not images:
+            return create_error_response(
+                'validation_error',
+                'No images to save',
+                status_code=400
+            )
+
+        board_id = save_mood_board(user_id, images, tracks, board_name)
+        share_url = generate_share_link(board_id, request.host_url.rstrip('/'))
+
+        return jsonify({
+            "success": True,
+            "board_id": board_id,
+            "share_url": share_url,
+            "message": "Mood board saved successfully"
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error saving mood board: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to save mood board',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/mood-board/my-boards', methods=['GET'])
+def get_my_mood_boards():
+    """Get all saved mood boards for the current user"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+        user_info = sp.current_user()
+        user_id = user_info['id']
+
+        boards = get_user_mood_boards(user_id)
+
+        return jsonify({
+            "success": True,
+            "boards": boards,
+            "count": len(boards)
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching user mood boards: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to fetch mood boards',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/mood-board/<board_id>', methods=['GET'])
+def get_saved_mood_board(board_id):
+    """Get a specific saved mood board"""
+    try:
+        board = load_mood_board(board_id)
+
+        if not board:
+            return create_error_response(
+                'not_found',
+                'Mood board not found',
+                status_code=404
+            )
+
+        return jsonify({
+            "success": True,
+            "board": board
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error loading mood board: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to load mood board',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/mood-board/<board_id>', methods=['DELETE'])
+def delete_user_mood_board(board_id):
+    """Delete a saved mood board"""
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                status_code=401
+            )
+
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+        user_info = sp.current_user()
+        user_id = user_info['id']
+
+        success = delete_mood_board(board_id, user_id)
+
+        if not success:
+            return create_error_response(
+                'not_found',
+                'Mood board not found or unauthorized',
+                status_code=404
+            )
+
+        return jsonify({
+            "success": True,
+            "message": "Mood board deleted successfully"
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error deleting mood board: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to delete mood board',
+            details=str(e),
+            status_code=500
+        )
+
+
+@app.route('/shared/mood-board/<board_id>', methods=['GET'])
+def view_shared_mood_board(board_id):
+    """View a shared mood board (public access)"""
+    try:
+        board = load_mood_board(board_id)
+
+        if not board:
+            return render_template('error.html', message='Mood board not found'), 404
+
+        # Return HTML view for shared mood boards
+        return render_template('shared_mood_board.html', board=board)
+
+    except Exception as e:
+        logging.error(f"Error viewing shared mood board: {e}", exc_info=True)
+        return render_template('error.html', message='Error loading mood board'), 500
 
 
 if __name__ == '__main__':

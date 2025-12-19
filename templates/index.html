@@ -31,6 +31,13 @@
             border-bottom: 1px solid #282828;
             margin-bottom: 40px;
             background: linear-gradient(180deg, #1a1a1a 0%, #121212 100%);
+            position: relative;
+            z-index: 100;
+        }
+
+        #authControls {
+            position: relative;
+            z-index: 101;
         }
 
         .header h1 {
@@ -729,11 +736,22 @@
             cursor: pointer;
             transition: all 0.2s ease;
             letter-spacing: 0.05em;
+            position: relative;
+            z-index: 10;
+            pointer-events: auto;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .action-btn:hover {
             background: #1fdf64;
             transform: scale(1.04);
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+            background: #1ed760;
         }
 
         .action-btn.secondary {

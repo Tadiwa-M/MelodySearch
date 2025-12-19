@@ -1,7 +1,7 @@
 """
 Image Service for Mood Board
-Fetches aesthetic images from Unsplash API based on music metadata
-Supports fallback to Spotify images if external API fails
+Fetches aesthetic images from multiple sources: Unsplash, Pexels, Pixabay
+Supports fallback to Spotify images if external APIs fail
 """
 
 import os
@@ -15,18 +15,21 @@ class ImageService:
     """Service for fetching aesthetic images from external sources"""
 
     def __init__(self):
+        # Unsplash API
         self.unsplash_access_key = os.getenv('UNSPLASH_ACCESS_KEY')
         self.unsplash_base_url = 'https://api.unsplash.com'
+
+        # Pexels API
+        self.pexels_api_key = os.getenv('PEXELS_API_KEY')
+        self.pexels_base_url = 'https://api.pexels.com/v1'
+
+        # Pixabay API
+        self.pixabay_api_key = os.getenv('PIXABAY_API_KEY')
+        self.pixabay_base_url = 'https://pixabay.com/api'
+
         self.session = requests.Session()
 
-        # Set up headers for Unsplash API
-        if self.unsplash_access_key:
-            self.session.headers.update({
-                'Authorization': f'Client-ID {self.unsplash_access_key}',
-                'Accept-Version': 'v1'
-            })
-
-    def search_images(self, query: str, count: int = 5, orientation: str = 'portrait') -> List[Dict]:
+    def search_unsplash(self, query: str, count: int = 5, orientation: str = 'portrait') -> List[Dict]:
         """
         Search for images on Unsplash by query
 
@@ -39,21 +42,23 @@ class ImageService:
             List of image dictionaries with url, title, artist, photographer info
         """
         if not self.unsplash_access_key:
-            logging.warning("Unsplash API key not configured")
             return []
 
         try:
-            # Unsplash API endpoint for photo search
             endpoint = f'{self.unsplash_base_url}/search/photos'
+            headers = {
+                'Authorization': f'Client-ID {self.unsplash_access_key}',
+                'Accept-Version': 'v1'
+            }
 
             params = {
                 'query': query,
-                'per_page': min(count, 30),  # Unsplash max is 30
+                'per_page': min(count, 30),
                 'orientation': orientation,
-                'content_filter': 'high',  # Filter out inappropriate content
+                'content_filter': 'high',
             }
 
-            response = self.session.get(endpoint, params=params, timeout=10)
+            response = self.session.get(endpoint, params=params, headers=headers, timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -61,13 +66,14 @@ class ImageService:
 
             for photo in data.get('results', []):
                 images.append({
-                    'url': photo['urls']['regular'],  # 1080px wide
-                    'thumb_url': photo['urls']['small'],  # 400px wide
+                    'url': photo['urls']['regular'],
+                    'thumb_url': photo['urls']['small'],
                     'title': photo.get('description') or photo.get('alt_description') or query,
                     'photographer': photo['user']['name'],
-                    'photographer_url': photo['user']['links']['html'],
-                    'download_location': photo['links']['download_location'],  # Required for API compliance
+                    'photographer_url': photo['user']['links']['html'] + '?utm_source=MelodySearch&utm_medium=referral',
+                    'download_location': photo['links']['download_location'],
                     'type': 'unsplash',
+                    'source': 'unsplash',
                     'keywords': query,
                     'color': photo.get('color', '#000000'),
                     'width': photo['width'],
@@ -77,12 +83,134 @@ class ImageService:
             logging.info(f"Fetched {len(images)} images from Unsplash for query: {query}")
             return images
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             logging.error(f"Error fetching images from Unsplash: {e}")
             return []
-        except Exception as e:
-            logging.error(f"Unexpected error in image search: {e}", exc_info=True)
+
+    def search_pexels(self, query: str, count: int = 5, orientation: str = 'portrait') -> List[Dict]:
+        """Search for images on Pexels"""
+        if not self.pexels_api_key:
             return []
+
+        try:
+            endpoint = f'{self.pexels_base_url}/search'
+            headers = {'Authorization': self.pexels_api_key}
+
+            params = {
+                'query': query,
+                'per_page': min(count, 80),
+                'orientation': orientation
+            }
+
+            response = self.session.get(endpoint, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            images = []
+
+            for photo in data.get('photos', []):
+                images.append({
+                    'url': photo['src']['large'],
+                    'thumb_url': photo['src']['medium'],
+                    'title': photo.get('alt') or query,
+                    'photographer': photo['photographer'],
+                    'photographer_url': photo['photographer_url'] + '?utm_source=MelodySearch&utm_medium=referral',
+                    'type': 'pexels',
+                    'source': 'pexels',
+                    'keywords': query,
+                    'color': photo.get('avg_color', '#000000'),
+                    'width': photo['width'],
+                    'height': photo['height']
+                })
+
+            logging.info(f"Fetched {len(images)} images from Pexels for query: {query}")
+            return images
+
+        except Exception as e:
+            logging.error(f"Error fetching images from Pexels: {e}")
+            return []
+
+    def search_pixabay(self, query: str, count: int = 5, orientation: str = 'vertical') -> List[Dict]:
+        """Search for images on Pixabay"""
+        if not self.pixabay_api_key:
+            return []
+
+        try:
+            endpoint = self.pixabay_base_url
+
+            params = {
+                'key': self.pixabay_api_key,
+                'q': query,
+                'per_page': min(count, 200),
+                'orientation': orientation,
+                'safesearch': 'true',
+                'image_type': 'photo'
+            }
+
+            response = self.session.get(endpoint, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            images = []
+
+            for photo in data.get('hits', []):
+                images.append({
+                    'url': photo['largeImageURL'],
+                    'thumb_url': photo['webformatURL'],
+                    'title': photo.get('tags') or query,
+                    'photographer': photo['user'],
+                    'photographer_url': f"https://pixabay.com/users/{photo['user']}-{photo['user_id']}/?utm_source=MelodySearch&utm_medium=referral",
+                    'type': 'pixabay',
+                    'source': 'pixabay',
+                    'keywords': query,
+                    'color': '#000000',
+                    'width': photo['imageWidth'],
+                    'height': photo['imageHeight']
+                })
+
+            logging.info(f"Fetched {len(images)} images from Pixabay for query: {query}")
+            return images
+
+        except Exception as e:
+            logging.error(f"Error fetching images from Pixabay: {e}")
+            return []
+
+    def search_images(self, query: str, count: int = 5, orientation: str = 'portrait', sources: List[str] = None) -> List[Dict]:
+        """
+        Search for images across multiple sources
+
+        Args:
+            query: Search term
+            count: Number of images to fetch
+            orientation: Image orientation
+            sources: List of sources to search ['unsplash', 'pexels', 'pixabay']. If None, tries all available.
+
+        Returns:
+            Mixed list of images from multiple sources
+        """
+        if sources is None:
+            sources = ['unsplash', 'pexels', 'pixabay']
+
+        all_images = []
+        images_per_source = max(1, count // len(sources))
+
+        for source in sources:
+            if source == 'unsplash' and self.unsplash_access_key:
+                images = self.search_unsplash(query, images_per_source, orientation)
+                all_images.extend(images)
+            elif source == 'pexels' and self.pexels_api_key:
+                images = self.search_pexels(query, images_per_source, orientation)
+                all_images.extend(images)
+            elif source == 'pixabay' and self.pixabay_api_key:
+                pix_orientation = 'vertical' if orientation == 'portrait' else 'horizontal'
+                images = self.search_pixabay(query, images_per_source, pix_orientation)
+                all_images.extend(images)
+
+        # Shuffle to mix sources
+        import random
+        random.shuffle(all_images)
+
+        return all_images[:count]
 
     def trigger_download(self, download_location: str):
         """
