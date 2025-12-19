@@ -2667,12 +2667,12 @@ def get_mood_board():
         # Get recently played tracks
         all_tracks = []
         artist_ids = []
+        spotify_fallback_images = []
+
         try:
             recently_played = sp.current_user_recently_played(limit=20)
             for item in recently_played.get('items', []):
                 track = item['track']
-                # Create search keywords from track name and artist
-                keywords = f"{track['name']} {track['artists'][0]['name']}"
 
                 # Collect artist IDs for fetching artist images
                 if track['artists'][0]['id']:
@@ -2685,8 +2685,8 @@ def get_mood_board():
                     'artist_id': track['artists'][0]['id'],
                     'album': track['album']['name'],
                     'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                    'keywords': keywords,
-                    'played_at': item['played_at']
+                    'played_at': item['played_at'],
+                    'genres': []  # Will be populated if we fetch artist info
                 })
         except Exception as e:
             logging.error(f"Could not fetch recently played: {e}")
@@ -2699,51 +2699,77 @@ def get_mood_board():
                 "images": [],
                 "track_count": 0,
                 "generated_at": datetime.now().isoformat(),
-                "message": "No listening history found yet. Start listening to music on Spotify!"
+                "message": "No listening history found yet. Start listening to music on Spotify!",
+                "source": "none"
             }), 200
 
-        # Fetch artist images for variety
+        # Fetch artist data for genres and fallback images
         artist_images = {}
         if artist_ids:
             try:
-                # Remove duplicates and limit
                 unique_artist_ids = list(set(artist_ids))[:10]
                 artists_data = sp.artists(unique_artist_ids)
                 for artist in artists_data.get('artists', []):
-                    if artist and artist.get('images'):
-                        artist_images[artist['id']] = artist['images'][0]['url']
-            except Exception as e:
-                logging.warning(f"Could not fetch artist images: {e}")
+                    if artist:
+                        # Store artist images for fallback
+                        if artist.get('images'):
+                            artist_images[artist['id']] = artist['images'][0]['url']
 
-        # Create aesthetic image collection mixing album art and artist photos
-        images = []
-        for idx, track in enumerate(all_tracks[:15]):  # Limit to 15 for aesthetic grid
-            # Alternate between album artwork and artist images for variety
+                        # Add genres to tracks
+                        genres = artist.get('genres', [])
+                        for track in all_tracks:
+                            if track['artist_id'] == artist['id']:
+                                track['genres'] = genres
+            except Exception as e:
+                logging.warning(f"Could not fetch artist data: {e}")
+
+        # Prepare Spotify fallback images
+        for idx, track in enumerate(all_tracks[:15]):
             if idx % 3 == 0 and track['artist_id'] in artist_images:
-                # Every 3rd image, use artist photo
-                images.append({
+                spotify_fallback_images.append({
                     'url': artist_images[track['artist_id']],
                     'title': track['artist'],
                     'artist': track['artist'],
                     'type': 'artist',
-                    'keywords': track['keywords']
+                    'source': 'spotify'
                 })
             elif track['album_art']:
-                # Use album artwork
-                images.append({
+                spotify_fallback_images.append({
                     'url': track['album_art'],
                     'title': track['name'],
                     'artist': track['artist'],
                     'type': 'album',
-                    'keywords': track['keywords']
+                    'source': 'spotify'
                 })
+
+        # Try to fetch aesthetic images from Unsplash
+        images = []
+        image_source = 'spotify'  # Default to Spotify
+
+        try:
+            image_service = get_image_service()
+            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=15)
+
+            if unsplash_images:
+                images = unsplash_images
+                image_source = 'unsplash'
+                logging.info(f"Successfully fetched {len(images)} images from Unsplash")
+            else:
+                # Fallback to Spotify images
+                images = spotify_fallback_images
+                logging.info("No Unsplash images available, using Spotify fallback")
+        except Exception as e:
+            # Fallback to Spotify images on error
+            logging.warning(f"Error fetching Unsplash images, falling back to Spotify: {e}")
+            images = spotify_fallback_images
 
         return jsonify({
             "success": True,
-            "tracks": all_tracks[:10],  # Return top 10 tracks info
+            "tracks": all_tracks[:10],
             "images": images,
             "track_count": len(all_tracks),
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
+            "source": image_source
         }), 200
 
     except Exception as e:
