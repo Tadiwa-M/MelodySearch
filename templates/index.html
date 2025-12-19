@@ -3634,9 +3634,6 @@
                 displayMoodBoard() {
                     const { images, tracks, track_count, generated_at, message, source } = this.moodData;
 
-                    // Clear analysis container
-                    document.getElementById('moodAnalysis').innerHTML = '';
-
                     // Check if no listening history
                     if (track_count === 0 || images.length === 0) {
                         document.getElementById('moodBoardGrid').innerHTML = `
