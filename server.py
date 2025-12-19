@@ -11,6 +11,7 @@ from library_manager import (
     update_collection, delete_collection, add_song_to_collection,
     remove_song_from_collection, get_library_stats
 )
+from image_service import get_image_service
 from flask_session import Session
 import requests
 import tempfile
