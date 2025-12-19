@@ -1250,6 +1250,67 @@
             }
         }
 
+        /* Full-Screen Mood Board */
+        .mood-board-fullscreen {
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .mood-board-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(18, 18, 18, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .mood-board-title h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .mood-board-title p {
+            margin: 0;
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .back-btn, .refresh-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .back-btn:hover, .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .back-btn:active, .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        .mood-board-scroll {
+            padding: 1rem;
+            min-height: calc(100vh - 80px);
+        }
+
         /* Pinterest-style Masonry Layout */
         .masonry-grid {
             column-count: 4;
@@ -1407,8 +1468,35 @@
         }
 
         @media (max-width: 768px) {
+            /* Full-screen mode on mobile */
+            .tab-content[data-tab-content="mood-board"] {
+                margin: 0 -20px;
+            }
+
+            .mood-board-fullscreen {
+                margin: -40px -20px 0 -20px;
+                min-height: 100vh;
+            }
+
+            .mood-board-header {
+                padding: 1rem;
+            }
+
+            .mood-board-title h2 {
+                font-size: 1.2rem;
+            }
+
+            .mood-board-scroll {
+                padding: 0.75rem;
+            }
+
             .masonry-grid {
                 column-count: 2;
+                column-gap: 0.75rem;
+            }
+
+            .masonry-item {
+                margin-bottom: 0.75rem;
             }
 
             .masonry-card {
@@ -1418,6 +1506,33 @@
             .pin-btn {
                 width: 36px;
                 height: 36px;
+            }
+
+            /* Hide main header and nav when mood board is active */
+            body.mood-board-active .header,
+            body.mood-board-active .nav-tabs {
+                display: none;
+            }
+
+            body.mood-board-active .container {
+                padding: 0;
+                max-width: 100%;
+            }
+
+            body.mood-board-active .tab-content[data-tab-content="mood-board"] {
+                margin: 0;
+            }
+
+            body.mood-board-active .mood-board-fullscreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                margin: 0;
+                background: #121212;
+                z-index: 9999;
+                overflow-y: auto;
             }
         }
 
@@ -1714,20 +1829,24 @@
 
         <!-- Mood Board Tab Content -->
         <div class="tab-content" data-tab-content="mood-board">
-            <div class="library-section">
-                <div class="library-header">
-                    <div>
+            <div class="mood-board-fullscreen" id="moodBoardContainer">
+                <div class="mood-board-header">
+                    <button class="back-btn" onclick="window.moodBoardManager.exitFullscreen()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <div class="mood-board-title">
                         <h2>Your Mood Board</h2>
-                        <p class="library-stats" id="moodBoardStats">Generated from your listening history</p>
+                        <p id="moodBoardStats">Generated from your listening history</p>
                     </div>
-                    <button class="action-btn" id="refreshMoodBoardBtn" onclick="window.moodBoardManager.loadMoodBoard()">
-                        🔄 Refresh
+                    <button class="refresh-btn" onclick="window.moodBoardManager.loadMoodBoard()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
                     </button>
                 </div>
-                <div id="moodAnalysis" style="margin-bottom: 2rem;">
-                    <!-- Mood analysis will be shown here -->
-                </div>
-                <div id="moodBoardGrid">
+                <div id="moodBoardGrid" class="mood-board-scroll">
                     <!-- Mood board images will be populated here -->
                 </div>
             </div>
@@ -2798,9 +2917,13 @@
                     window.recentlyPlayedManager.loadRecentlyPlayed();
                 } else if (tabName === 'mood-board') {
                     window.moodBoardManager.loadMoodBoard();
+                    // Enter full-screen mode on mobile
+                    window.moodBoardManager.enterFullscreen();
                 } else {
                     // Stop auto-refresh when switching away from now-playing
                     window.nowPlayingManager.stopAutoRefresh();
+                    // Exit full-screen mode when leaving mood board
+                    window.moodBoardManager.exitFullscreen();
                 }
             }
 
@@ -3610,6 +3733,22 @@
                         notification.style.animation = 'fadeOut 0.3s ease';
                         setTimeout(() => notification.remove(), 300);
                     }, 2000);
+                }
+
+                enterFullscreen() {
+                    // On mobile, make mood board full-screen
+                    if (window.innerWidth <= 768) {
+                        document.body.classList.add('mood-board-active');
+                        // Scroll to top for immersive experience
+                        window.scrollTo(0, 0);
+                    }
+                }
+
+                exitFullscreen() {
+                    // Exit full-screen mode on mobile
+                    document.body.classList.remove('mood-board-active');
+                    // Optionally switch to a different tab or stay on mood board
+                    // For now, just exit full-screen mode
                 }
             }
 
