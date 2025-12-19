@@ -1316,6 +1316,67 @@
             min-height: calc(100vh - 80px);
         }
 
+        .mood-board-search {
+            position: sticky;
+            top: 63px;
+            z-index: 999;
+            background: rgba(18, 18, 18, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .mood-search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 0.6rem 1rem;
+            color: #ffffff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .mood-search-input:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #1db954;
+        }
+
+        .mood-search-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .search-go-btn {
+            background: #1db954;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .search-go-btn:hover {
+            background: #1ed760;
+            transform: scale(1.05);
+        }
+
+        .search-go-btn:active {
+            transform: scale(0.95);
+        }
+
+        .search-go-btn svg {
+            color: #000000;
+        }
+
         /* Pinterest-style Masonry Layout */
         .masonry-grid {
             column-count: 4;
@@ -1842,10 +1903,16 @@
                         </svg>
                     </button>
                     <div class="mood-board-title">
-                        <h2>Your Mood Board</h2>
+                        <h2 id="moodBoardTitle">Your Mood Board</h2>
                         <p id="moodBoardStats">Generated from your listening history</p>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
+                        <button class="icon-btn" onclick="window.moodBoardManager.toggleSearch()" title="Custom Search" id="searchToggleBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                        </button>
                         <button class="icon-btn" onclick="window.moodBoardManager.showSavedBoards()" title="My Saved Boards">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
@@ -1866,6 +1933,19 @@
                             </svg>
                         </button>
                     </div>
+                </div>
+                <div class="mood-board-search" id="moodBoardSearch" style="display: none;">
+                    <input type="text"
+                           class="mood-search-input"
+                           id="customSearchInput"
+                           placeholder="Search any aesthetic... (e.g., dark moody, cottagecore, cyberpunk)"
+                           onkeypress="if(event.key==='Enter') window.moodBoardManager.customSearch()">
+                    <button class="search-go-btn" onclick="window.moodBoardManager.customSearch()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
                 </div>
                 <div id="moodBoardGrid" class="mood-board-scroll">
                     <!-- Mood board images will be populated here -->
@@ -3950,6 +4030,65 @@
                     document.body.classList.remove('mood-board-active');
                     // Optionally switch to a different tab or stay on mood board
                     // For now, just exit full-screen mode
+                }
+
+                toggleSearch() {
+                    const searchBar = document.getElementById('moodBoardSearch');
+                    const searchInput = document.getElementById('customSearchInput');
+                    const isVisible = searchBar.style.display !== 'none';
+
+                    if (isVisible) {
+                        searchBar.style.display = 'none';
+                    } else {
+                        searchBar.style.display = 'flex';
+                        searchInput.focus();
+                    }
+                }
+
+                async customSearch() {
+                    const query = document.getElementById('customSearchInput').value.trim();
+                    if (!query) {
+                        alert('Please enter a search term');
+                        return;
+                    }
+
+                    try {
+                        document.getElementById('moodBoardStats').textContent = 'Searching...';
+                        const response = await fetch('/mood-board/custom-search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                query: query,
+                                count: 30,
+                                sources: ['unsplash', 'pexels', 'pixabay']
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            // Update mood data with custom search results
+                            this.moodData = {
+                                images: data.images,
+                                tracks: [],
+                                track_count: 0,
+                                source: data.sources_used.join(', ')
+                            };
+                            document.getElementById('moodBoardTitle').textContent = query;
+                            this.displayMoodBoard();
+
+                            // Hide search bar after successful search
+                            document.getElementById('moodBoardSearch').style.display = 'none';
+
+                            // Show notification
+                            this.showNotification(`✨ Found ${data.images.length} images for "${query}"`);
+                        } else {
+                            alert(data.message || 'Search failed. Please try again.');
+                        }
+                    } catch (error) {
+                        console.error('Error in custom search:', error);
+                        alert('Search failed. Please try again.');
+                        document.getElementById('moodBoardStats').textContent = 'Search failed';
+                    }
                 }
             }
 
