@@ -2735,22 +2735,12 @@ def get_mood_board():
             except Exception as e:
                 logging.warning(f"Could not fetch artist data: {e}")
 
-        # Prepare Spotify images (PRIMARY SOURCE - artist photos and album covers)
-        # Use ALL tracks for maximum variety (was 30, now using all 50)
+        # Prepare Spotify images - MAXIMIZE DIVERSITY
+        # Strategy: Use ALL 50 tracks, each contributes 1 UNIQUE album cover
+        # This gives 50 different albums instead of repeating artist photos
         for idx, track in enumerate(all_tracks[:50]):
-            # Add artist photo every 4 tracks (not every 3) for more variety
-            if idx % 4 == 0 and track['artist_id'] in artist_images:
-                # Artist photo
-                spotify_fallback_images.append({
-                    'url': artist_images[track['artist_id']],
-                    'thumb_url': artist_images[track['artist_id']],
-                    'title': track['artist'],
-                    'artist': track['artist'],
-                    'type': 'artist',
-                    'source': 'spotify'
-                })
+            # ALWAYS add album cover (guaranteed unique per track)
             if track['album_art']:
-                # Album cover
                 spotify_fallback_images.append({
                     'url': track['album_art'],
                     'thumb_url': track['album_art'],
@@ -2760,36 +2750,47 @@ def get_mood_board():
                     'source': 'spotify'
                 })
 
-        # MIX Spotify (90%) + Unsplash (10%) - HEAVY Spotify bias
-        # Spotify = ACTUAL music content (artist photos, album covers)
-        # Unsplash = Just a tiny bit of aesthetic variety until Pinterest API is ready
+            # Add artist photo only occasionally (every 10 tracks) for variety
+            # This adds ~5 artist photos across 50 tracks instead of spamming them
+            if idx % 10 == 0 and track['artist_id'] in artist_images:
+                spotify_fallback_images.append({
+                    'url': artist_images[track['artist_id']],
+                    'thumb_url': artist_images[track['artist_id']],
+                    'title': track['artist'],
+                    'artist': track['artist'],
+                    'type': 'artist',
+                    'source': 'spotify'
+                })
+
+        # MIX: Prioritize Spotify heavily (95% Spotify / 5% Unsplash)
+        # User's insight: More songs = more diversity, each song = unique album
         images = []
         image_source = 'spotify+unsplash'
 
         try:
             image_service = get_image_service()
-            # Fetch very few Unsplash images (only 10% of total)
-            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=12)
+            # Fetch minimal Unsplash (only 5 images for tiny variety)
+            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=5)
 
-            # Mix: 90 Spotify images + 10 Unsplash images = 100 total
+            # Mix: ~50-55 Spotify images + 5 Unsplash = ~55-60 total
             import random
 
-            # Take up to 90 Spotify images (or all if less)
-            spotify_portion = spotify_fallback_images[:90]
+            # Use ALL Spotify images (50 album covers + ~5 artist photos)
+            spotify_portion = spotify_fallback_images[:60]
 
-            # Take up to 10 Unsplash images (or all if less)
-            unsplash_portion = unsplash_images[:10] if unsplash_images else []
+            # Add just 5 Unsplash for minimal aesthetic variety
+            unsplash_portion = unsplash_images[:5] if unsplash_images else []
 
-            # Combine and shuffle for variety
+            # Combine and shuffle
             images = spotify_portion + unsplash_portion
             random.shuffle(images)
 
-            logging.info(f"Mixed mood board: {len(spotify_portion)} Spotify + {len(unsplash_portion)} Unsplash = {len(images)} total")
+            logging.info(f"Mixed mood board: {len(spotify_portion)} Spotify (50 albums + artists) + {len(unsplash_portion)} Unsplash = {len(images)} total")
 
         except Exception as e:
-            # Fallback to 100% Spotify images on error
+            # Fallback to 100% Spotify
             logging.warning(f"Error fetching Unsplash images, using Spotify only: {e}")
-            images = spotify_fallback_images[:100]
+            images = spotify_fallback_images[:60]
             image_source = 'spotify'
 
         return jsonify({
