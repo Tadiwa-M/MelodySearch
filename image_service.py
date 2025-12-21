@@ -45,15 +45,21 @@ class ImageService:
             return []
 
         try:
+            import random
+
             endpoint = f'{self.unsplash_base_url}/search/photos'
             headers = {
                 'Authorization': f'Client-ID {self.unsplash_access_key}',
                 'Accept-Version': 'v1'
             }
 
+            # Request MORE images than needed, then randomly sample
+            # This prevents getting the same top results every time
+            request_count = min(count * 3, 30)  # Request 3x what we need (max 30)
+
             params = {
                 'query': query,
-                'per_page': min(count, 30),
+                'per_page': request_count,
                 'orientation': orientation,
                 'content_filter': 'high',
             }
@@ -79,6 +85,10 @@ class ImageService:
                     'width': photo['width'],
                     'height': photo['height']
                 })
+
+            # Randomly sample to get variety (not just top results)
+            if len(images) > count:
+                images = random.sample(images, count)
 
             logging.info(f"Fetched {len(images)} images from Unsplash for query: {query}")
             return images
@@ -247,10 +257,14 @@ class ImageService:
         """
         keywords = []
 
-        # Strategy 1: Artist-related (for music app feel, but not dominant)
+        # Strategy 1: Artist-related (MULTIPLE variations for diversity)
+        # This gives different types of artist photos instead of same image repeated
         keywords.append(f"{artist_name} aesthetic")
+        keywords.append(f"{artist_name} concert")
+        keywords.append(f"{artist_name} portrait")
+        keywords.append(f"{artist_name} studio")
 
-        # Strategy 2: Genre-based aesthetics (PRIMARY FOCUS - lots of variety)
+        # Strategy 2: Genre-based aesthetics (for variety)
         if genres:
             for genre in genres[:3]:  # Top 3 genres
                 genre_lower = genre.lower()
