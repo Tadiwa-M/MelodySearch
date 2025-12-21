@@ -3760,7 +3760,8 @@
                 async loadMoodBoard() {
                     try {
                         document.getElementById('moodBoardStats').textContent = 'Loading...';
-                        const response = await fetch('/mood-board');
+                        // Add cache busting to force fresh data
+                        const response = await fetch(`/mood-board?t=${Date.now()}`);
                         const data = await response.json();
 
                         if (!data.success) {
