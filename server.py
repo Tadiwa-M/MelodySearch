@@ -2874,10 +2874,35 @@ def get_top_tracks_playlist():
 
         sp = get_spotify(token_info)
 
-        # STEP 1: Get user's top 5 tracks (short term = last 4 weeks)
-        top_tracks_result = sp.current_user_top_tracks(limit=5, time_range='short_term')
-        top_tracks = top_tracks_result.get('items', [])
+        # STEP 1: Get user's top 5 tracks (try different time ranges)
+        top_tracks = []
+        top_track_names = []
 
+        # Try short_term first (last 4 weeks)
+        try:
+            top_tracks_result = sp.current_user_top_tracks(limit=5, time_range='short_term')
+            top_tracks = top_tracks_result.get('items', [])
+        except:
+            pass
+
+        # Fallback to medium_term (last 6 months)
+        if not top_tracks:
+            try:
+                top_tracks_result = sp.current_user_top_tracks(limit=5, time_range='medium_term')
+                top_tracks = top_tracks_result.get('items', [])
+            except:
+                pass
+
+        # Fallback to recently played as seeds if no top tracks
+        if not top_tracks:
+            try:
+                recently_played_for_seeds = sp.current_user_recently_played(limit=10)
+                # Use recently played as "top tracks"
+                top_tracks = [item['track'] for item in recently_played_for_seeds.get('items', [])]
+            except:
+                pass
+
+        # If still no data, return empty
         if not top_tracks:
             return jsonify({
                 "success": True,
