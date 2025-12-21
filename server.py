@@ -2849,6 +2849,127 @@ def custom_mood_board_search():
         )
 
 
+@app.route('/top-tracks-playlist', methods=['GET'])
+def get_top_tracks_playlist():
+    """
+    Generate a personalized playlist based on user's top tracks
+    Similar to Spotify's generated playlists, but mood board style
+
+    Algorithm:
+    1. Get user's top 5 most played tracks
+    2. Find similar songs using Spotify recommendations
+    3. Filter recommendations to songs user has actually played recently
+    4. Rank by play frequency
+    5. Generate premium 2x2 album grid cover
+    """
+    try:
+        token_info = session.get('token_info')
+        if not token_info:
+            return create_error_response(
+                'auth_error',
+                'User not authenticated',
+                suggestions=['Please login with Spotify first'],
+                status_code=401
+            )
+
+        sp = get_spotify(token_info)
+
+        # STEP 1: Get user's top 5 tracks (short term = last 4 weeks)
+        top_tracks_result = sp.current_user_top_tracks(limit=5, time_range='short_term')
+        top_tracks = top_tracks_result.get('items', [])
+
+        if not top_tracks:
+            return jsonify({
+                "success": True,
+                "message": "Not enough listening history. Keep listening!",
+                "playlist": [],
+                "cover_images": []
+            }), 200
+
+        # Extract track IDs for recommendation seeds
+        top_track_ids = [track['id'] for track in top_tracks]
+        top_track_names = [track['name'] for track in top_tracks]
+
+        # STEP 2: Get recently played tracks (last 50) to build play count map
+        recently_played = sp.current_user_recently_played(limit=50)
+        play_count_map = {}  # track_id -> play count
+        recently_played_ids = set()
+
+        for item in recently_played.get('items', []):
+            track_id = item['track']['id']
+            recently_played_ids.add(track_id)
+            play_count_map[track_id] = play_count_map.get(track_id, 0) + 1
+
+        # STEP 3: Get recommendations based on top tracks
+        recommendations = sp.recommendations(
+            seed_tracks=top_track_ids[:5],  # Max 5 seeds
+            limit=100  # Get many recommendations to filter from
+        )
+
+        # STEP 4: Filter recommendations to only songs user has actually played
+        # Then rank by play count
+        filtered_recommendations = []
+        for rec_track in recommendations.get('tracks', []):
+            track_id = rec_track['id']
+
+            # Only include if user has played it recently
+            if track_id in recently_played_ids:
+                filtered_recommendations.append({
+                    'id': track_id,
+                    'name': rec_track['name'],
+                    'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
+                    'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
+                    'album': rec_track['album']['name'],
+                    'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
+                    'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
+                    'play_count': play_count_map.get(track_id, 0),
+                    'preview_url': rec_track.get('preview_url'),
+                    'uri': rec_track['uri']
+                })
+
+        # Sort by play count (most played first)
+        filtered_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
+
+        # Take top 20 tracks for the playlist
+        playlist_tracks = filtered_recommendations[:20]
+
+        # STEP 5: Generate 2x2 album grid cover (like Spotify)
+        # Use top 4 tracks' album covers
+        cover_tracks = playlist_tracks[:4] if len(playlist_tracks) >= 4 else playlist_tracks
+        cover_images = [track['album_art'] for track in cover_tracks if track['album_art']]
+
+        # Pad with top tracks if we don't have 4
+        if len(cover_images) < 4:
+            for track in top_tracks:
+                if len(cover_images) >= 4:
+                    break
+                album_art = track['album']['images'][0]['url'] if track['album']['images'] else None
+                if album_art and album_art not in cover_images:
+                    cover_images.append(album_art)
+
+        return jsonify({
+            "success": True,
+            "playlist": {
+                "name": "Your Top Tracks Mix",
+                "description": f"Similar songs you love • Based on {', '.join(top_track_names[:3])} and more",
+                "tracks": playlist_tracks,
+                "track_count": len(playlist_tracks),
+                "cover_images": cover_images[:4],  # Exactly 4 for 2x2 grid
+                "seed_tracks": top_track_names
+            },
+            "generated_at": datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error generating top tracks playlist: {e}", exc_info=True)
+        return create_error_response(
+            'api_error',
+            'Failed to generate top tracks playlist',
+            details=str(e),
+            status_code=500
+        )
+
+
 @app.route('/mood-board/save', methods=['POST'])
 def save_user_mood_board():
     """Save a mood board collection"""

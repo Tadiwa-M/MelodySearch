@@ -1639,6 +1639,375 @@
                 transform: translateY(-10px);
             }
         }
+
+        /* ===== TOP TRACKS PLAYLIST - PREMIUM SPOTIFY STYLE ===== */
+        .top-tracks-container {
+            background: #121212;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* Premium Header with 2x2 Grid Cover */
+        .top-tracks-header {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-end;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(180deg, rgba(29, 185, 84, 0.15) 0%, rgba(18, 18, 18, 0) 100%);
+            border-radius: 8px;
+        }
+
+        /* 2x2 Album Grid Cover (like Spotify) */
+        .playlist-cover-grid {
+            width: 232px;
+            height: 232px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 2px;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+        }
+
+        .playlist-cover-grid img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Playlist Info */
+        .playlist-info {
+            flex: 1;
+        }
+
+        .playlist-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .playlist-info h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffffff;
+            margin: 0 0 1rem 0;
+            line-height: 1.1;
+        }
+
+        .playlist-desc {
+            font-size: 0.9rem;
+            color: #b3b3b3;
+            margin-bottom: 1rem;
+        }
+
+        .playlist-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #ffffff;
+        }
+
+        .playlist-creator {
+            font-weight: 700;
+        }
+
+        .meta-dot {
+            color: #b3b3b3;
+        }
+
+        /* Mood Board Grid of All Albums */
+        .top-tracks-mood-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 3rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+        }
+
+        .mood-board-album {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mood-board-album:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .mood-board-album img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .mood-board-album-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+            padding: 0.75rem;
+            transform: translateY(100%);
+            transition: transform 0.2s ease;
+        }
+
+        .mood-board-album:hover .mood-board-album-overlay {
+            transform: translateY(0);
+        }
+
+        .mood-board-album-overlay h4 {
+            font-size: 0.85rem;
+            margin: 0 0 0.25rem 0;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .mood-board-album-overlay p {
+            font-size: 0.75rem;
+            margin: 0;
+            color: #b3b3b3;
+        }
+
+        /* Track List (Premium Spotify Style) */
+        .top-tracks-list {
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+        }
+
+        .top-tracks-list h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 0 1.5rem 0;
+        }
+
+        .seed-tracks-info {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(29, 185, 84, 0.1);
+            border-left: 3px solid #1DB954;
+            border-radius: 4px;
+        }
+
+        .seed-tracks-info p {
+            margin: 0;
+            color: #b3b3b3;
+            font-size: 0.85rem;
+        }
+
+        .seed-tracks-info strong {
+            color: #1DB954;
+        }
+
+        .track-list-header {
+            display: grid;
+            grid-template-columns: 40px 1fr 80px;
+            gap: 1rem;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #b3b3b3;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .track-row {
+            display: grid;
+            grid-template-columns: 40px 1fr 80px;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .track-row:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .track-col-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b3b3b3;
+            font-size: 0.9rem;
+        }
+
+        .track-col-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .track-album-art {
+            width: 40px;
+            height: 40px;
+            border-radius: 2px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .track-text-info h4 {
+            margin: 0 0 0.25rem 0;
+            font-size: 0.95rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .track-text-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #b3b3b3;
+        }
+
+        .track-col-plays {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b3b3b3;
+            font-size: 0.9rem;
+        }
+
+        /* Loading & Empty States */
+        .loading-state, .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            color: #b3b3b3;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #1DB954;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .top-tracks-header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .playlist-cover-grid {
+                width: 200px;
+                height: 200px;
+            }
+
+            .playlist-info h1 {
+                font-size: 2rem;
+            }
+
+            .top-tracks-mood-board {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 0.5rem;
+            }
+
+            .track-row {
+                grid-template-columns: 30px 1fr 60px;
+                gap: 0.5rem;
+                padding: 0.5rem;
+            }
+
+            .track-album-art {
+                width: 35px;
+                height: 35px;
+            }
+        }
+
+        /* Playlist Action Buttons */
+        .playlist-action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 0.65rem 1.25rem;
+            border-radius: 24px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .playlist-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .playlist-action-btn.primary {
+            background: #1DB954;
+            border-color: #1DB954;
+        }
+
+        .playlist-action-btn.primary:hover {
+            background: #1ed760;
+            transform: scale(1.05);
+        }
+
+        .playlist-action-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .playlist-action-btn svg {
+            flex-shrink: 0;
+        }
+
+        /* Selection Mode Styles */
+        .mood-board-album.selectable {
+            cursor: pointer;
+        }
+
+        .mood-board-album.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 28px;
+            height: 28px;
+            background: #1DB954;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .mood-board-album.selectable:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -1667,6 +2036,7 @@
             <button class="nav-tab" data-tab="now-playing" role="tab" aria-selected="false" aria-controls="nowPlayingPanel">Now Playing</button>
             <button class="nav-tab" data-tab="recently-played" role="tab" aria-selected="false" aria-controls="recentlyPlayedPanel">Recently Played</button>
             <button class="nav-tab" data-tab="mood-board" role="tab" aria-selected="false" aria-controls="moodBoardPanel">Mood Board</button>
+            <button class="nav-tab" data-tab="top-tracks" role="tab" aria-selected="false" aria-controls="topTracksPanel">🔥 Top Tracks</button>
         </div>
 
         <!-- Search Tab Content -->
@@ -1969,6 +2339,113 @@
                 </div>
                 <div id="moodBoardGrid" class="mood-board-scroll">
                     <!-- Mood board images will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Tracks Playlist Tab Content -->
+        <div class="tab-content" data-tab-content="top-tracks" role="tabpanel" id="topTracksPanel">
+            <div class="top-tracks-container">
+                <!-- Loading State -->
+                <div id="topTracksLoading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Analyzing your top tracks...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="topTracksEmpty" class="empty-state" style="display: none;">
+                    <h3>Not Enough Data Yet</h3>
+                    <p>Listen to more music on Spotify to generate your personalized playlist!</p>
+                </div>
+
+                <!-- Main Content -->
+                <div id="topTracksContent" style="display: none;">
+                    <!-- Premium Header with 2x2 Grid Cover -->
+                    <div class="top-tracks-header">
+                        <div class="playlist-cover-grid" id="playlistCoverGrid">
+                            <!-- 2x2 grid of album covers will be generated here -->
+                        </div>
+                        <div class="playlist-info">
+                            <p class="playlist-label">PLAYLIST</p>
+                            <h1 id="playlistName">Your Top Tracks Mix</h1>
+                            <p id="playlistDescription" class="playlist-desc">Similar songs you love</p>
+                            <div class="playlist-meta">
+                                <span class="playlist-creator">MelodySearch</span>
+                                <span class="meta-dot">•</span>
+                                <span id="playlistTrackCount">0 songs</span>
+                            </div>
+                            <!-- Action Buttons -->
+                            <div class="playlist-actions" style="margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                                <button class="playlist-action-btn primary" onclick="window.topTracksManager.sharePlaylist()" title="Share Playlist Collage">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="18" cy="5" r="3"></circle>
+                                        <circle cx="6" cy="12" r="3"></circle>
+                                        <circle cx="18" cy="19" r="3"></circle>
+                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                                    </svg>
+                                    Share
+                                </button>
+                                <button class="playlist-action-btn" onclick="window.topTracksManager.toggleSelectionMode()" id="topTracksSelectBtn" title="Select Albums">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 11l3 3L22 4"></path>
+                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                    </svg>
+                                    Select Albums
+                                </button>
+                                <button class="playlist-action-btn" onclick="window.topTracksManager.refreshPlaylist()" title="Refresh Playlist">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                                    </svg>
+                                    Refresh
+                                </button>
+                            </div>
+                            <!-- Selection Mode Actions -->
+                            <div id="topTracksSelectionActions" class="selection-actions" style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(29, 185, 84, 0.1); border-radius: 8px; border-left: 3px solid #1DB954;">
+                                <p style="margin: 0 0 0.75rem 0; color: #1DB954; font-weight: 600;">
+                                    <span id="topTracksSelectionCount">0</span> albums selected
+                                </p>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button class="playlist-action-btn primary" onclick="window.topTracksManager.saveToNewBoard()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 5v14M5 12h14"></path>
+                                        </svg>
+                                        Create New Board
+                                    </button>
+                                    <button class="playlist-action-btn" onclick="window.topTracksManager.saveToExistingBoard()">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        </svg>
+                                        Save to Existing
+                                    </button>
+                                    <button class="playlist-action-btn secondary" onclick="window.topTracksManager.clearSelection()">
+                                        Clear Selection
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mood Board Grid of All Track Covers -->
+                    <div class="top-tracks-mood-board" id="topTracksMoodBoard">
+                        <!-- Mood board style grid of all album covers -->
+                    </div>
+
+                    <!-- Track List (Premium Spotify Style) -->
+                    <div class="top-tracks-list">
+                        <h2>Based on your top tracks</h2>
+                        <div id="seedTracksInfo" class="seed-tracks-info">
+                            <!-- Seed tracks will be shown here -->
+                        </div>
+                        <div class="track-list-header">
+                            <div class="track-col-number">#</div>
+                            <div class="track-col-title">Title</div>
+                            <div class="track-col-plays">Plays</div>
+                        </div>
+                        <div id="topTracksList">
+                            <!-- Track rows will be populated here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3041,6 +3518,8 @@
                     window.moodBoardManager.loadMoodBoard();
                     // Enter full-screen mode on mobile
                     window.moodBoardManager.enterFullscreen();
+                } else if (tabName === 'top-tracks') {
+                    window.topTracksManager.loadTopTracksPlaylist();
                 } else {
                     // Stop auto-refresh when switching away from now-playing and recently-played
                     window.nowPlayingManager.stopAutoRefresh();
@@ -4890,10 +5369,465 @@
                 }
             }
 
+            // ===== TOP TRACKS PLAYLIST MANAGER =====
+            class TopTracksManager {
+                constructor() {
+                    this.playlistData = null;
+                    this.selectedAlbums = [];
+                    this.selectionMode = false;
+                }
+
+                async loadTopTracksPlaylist() {
+                    console.log('[Top Tracks] Loading top tracks playlist...');
+                    const loadingEl = document.getElementById('topTracksLoading');
+                    const emptyEl = document.getElementById('topTracksEmpty');
+                    const contentEl = document.getElementById('topTracksContent');
+
+                    // Show loading
+                    loadingEl.style.display = 'flex';
+                    emptyEl.style.display = 'none';
+                    contentEl.style.display = 'none';
+
+                    try {
+                        const response = await fetch('/top-tracks-playlist');
+                        const data = await response.json();
+
+                        if (data.success && data.playlist && data.playlist.tracks.length > 0) {
+                            this.playlistData = data.playlist;
+                            this.renderPlaylist();
+
+                            // Hide loading, show content
+                            loadingEl.style.display = 'none';
+                            contentEl.style.display = 'block';
+
+                            console.log('[Top Tracks] Loaded', data.playlist.tracks.length, 'tracks');
+                        } else {
+                            // Show empty state
+                            loadingEl.style.display = 'none';
+                            emptyEl.style.display = 'flex';
+                            console.log('[Top Tracks] Not enough data');
+                        }
+                    } catch (error) {
+                        console.error('[Top Tracks] Error loading playlist:', error);
+                        loadingEl.style.display = 'none';
+                        emptyEl.style.display = 'flex';
+                    }
+                }
+
+                renderPlaylist() {
+                    if (!this.playlistData) return;
+
+                    const playlist = this.playlistData;
+
+                    // Render 2x2 album grid cover
+                    this.render2x2Grid(playlist.cover_images);
+
+                    // Update playlist info
+                    document.getElementById('playlistName').textContent = playlist.name;
+                    document.getElementById('playlistDescription').textContent = playlist.description;
+                    document.getElementById('playlistTrackCount').textContent = `${playlist.track_count} songs`;
+
+                    // Render seed tracks info
+                    const seedTracksInfo = document.getElementById('seedTracksInfo');
+                    if (playlist.seed_tracks && playlist.seed_tracks.length > 0) {
+                        seedTracksInfo.innerHTML = `
+                            <p>
+                                <strong>Based on:</strong> ${playlist.seed_tracks.slice(0, 3).join(', ')}
+                                ${playlist.seed_tracks.length > 3 ? ` and ${playlist.seed_tracks.length - 3} more` : ''}
+                            </p>
+                        `;
+                    }
+
+                    // Render mood board grid
+                    this.renderMoodBoard(playlist.tracks);
+
+                    // Render track list
+                    this.renderTrackList(playlist.tracks);
+                }
+
+                render2x2Grid(coverImages) {
+                    const gridEl = document.getElementById('playlistCoverGrid');
+                    gridEl.innerHTML = '';
+
+                    // Ensure we have exactly 4 images
+                    const images = coverImages.slice(0, 4);
+                    while (images.length < 4) {
+                        images.push(images[0] || ''); // Duplicate first image if needed
+                    }
+
+                    images.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = 'Album cover';
+                        img.loading = 'lazy';
+                        gridEl.appendChild(img);
+                    });
+                }
+
+                renderMoodBoard(tracks) {
+                    const moodBoardEl = document.getElementById('topTracksMoodBoard');
+                    moodBoardEl.innerHTML = '';
+
+                    tracks.forEach(track => {
+                        if (!track.album_art) return;
+
+                        const albumDiv = document.createElement('div');
+                        albumDiv.className = 'mood-board-album';
+
+                        albumDiv.innerHTML = `
+                            <img src="${track.album_art}" alt="${track.album}" loading="lazy">
+                            <div class="mood-board-album-overlay">
+                                <h4>${this.escapeHtml(track.name)}</h4>
+                                <p>${this.escapeHtml(track.artist)}</p>
+                            </div>
+                        `;
+
+                        moodBoardEl.appendChild(albumDiv);
+                    });
+                }
+
+                renderTrackList(tracks) {
+                    const trackListEl = document.getElementById('topTracksList');
+                    trackListEl.innerHTML = '';
+
+                    tracks.forEach((track, index) => {
+                        const row = document.createElement('div');
+                        row.className = 'track-row';
+
+                        row.innerHTML = `
+                            <div class="track-col-number">${index + 1}</div>
+                            <div class="track-col-title">
+                                ${track.album_art ? `<img src="${track.album_art}" alt="${track.album}" class="track-album-art">` : ''}
+                                <div class="track-text-info">
+                                    <h4>${this.escapeHtml(track.name)}</h4>
+                                    <p>${this.escapeHtml(track.artist)}</p>
+                                </div>
+                            </div>
+                            <div class="track-col-plays">${track.play_count || 0}</div>
+                        `;
+
+                        trackListEl.appendChild(row);
+                    });
+                }
+
+                escapeHtml(text) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+
+                // ===== SHARE PLAYLIST COLLAGE =====
+                async sharePlaylist() {
+                    if (!this.playlistData || !this.playlistData.tracks.length) return;
+
+                    console.log('[Top Tracks] Generating share collage...');
+
+                    try {
+                        // Create canvas for collage
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const canvasWidth = 1080;
+                        const canvasHeight = 1920;
+                        canvas.width = canvasWidth;
+                        canvas.height = canvasHeight;
+
+                        // Premium dark background with gradient
+                        const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+                        gradient.addColorStop(0, '#0a0a0a');
+                        gradient.addColorStop(0.5, '#1a1a1a');
+                        gradient.addColorStop(1, '#0a0a0a');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                        // Noise texture for depth
+                        for (let i = 0; i < 2000; i++) {
+                            const x = Math.random() * canvasWidth;
+                            const y = Math.random() * canvasHeight;
+                            const opacity = Math.random() * 0.03;
+                            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                            ctx.fillRect(x, y, 1, 1);
+                        }
+
+                        // Header
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 68px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Your Top Tracks Mix', canvasWidth / 2, 100);
+
+                        // Spotify green accent line
+                        ctx.fillStyle = '#1DB954';
+                        ctx.fillRect(canvasWidth / 2 - 100, 120, 200, 3);
+
+                        // Stats
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        ctx.font = '26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                        ctx.fillText(`${this.playlistData.track_count} tracks • MelodySearch`, canvasWidth / 2, 160);
+
+                        // Album grid (4x3 = 12 albums)
+                        const gridStartY = 220;
+                        const albumSize = 240;
+                        const gap = 20;
+                        const cols = 4;
+                        const rows = 3;
+
+                        const albums = this.playlistData.tracks.slice(0, 12);
+                        const loadedImages = await Promise.all(
+                            albums.map(track => {
+                                return new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.crossOrigin = 'anonymous';
+                                    img.onload = () => resolve({ img, track });
+                                    img.onerror = () => resolve(null);
+                                    img.src = track.album_art;
+                                });
+                            })
+                        );
+
+                        loadedImages.forEach((data, idx) => {
+                            if (!data) return;
+                            const { img, track } = data;
+
+                            const col = idx % cols;
+                            const row = Math.floor(idx / cols);
+                            const x = (canvasWidth - (cols * albumSize + (cols - 1) * gap)) / 2 + col * (albumSize + gap);
+                            const y = gridStartY + row * (albumSize + gap);
+
+                            // Draw album
+                            ctx.save();
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                            ctx.shadowBlur = 15;
+                            ctx.drawImage(img, x, y, albumSize, albumSize);
+                            ctx.restore();
+
+                            // Gradient overlay
+                            const overlayGradient = ctx.createLinearGradient(x, y + albumSize - 50, x, y + albumSize);
+                            overlayGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                            overlayGradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+                            ctx.fillStyle = overlayGradient;
+                            ctx.fillRect(x, y + albumSize - 50, albumSize, 50);
+
+                            // Track name
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = 'bold 18px -apple-system';
+                            ctx.textAlign = 'left';
+                            const trackName = track.name.length > 20 ? track.name.substring(0, 20) + '...' : track.name;
+                            ctx.fillText(trackName, x + 10, y + albumSize - 20);
+                        });
+
+                        // Footer
+                        const footerY = gridStartY + rows * (albumSize + gap) + 60;
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.font = '22px -apple-system';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Based on your most played tracks', canvasWidth / 2, footerY);
+
+                        // MelodySearch branding
+                        ctx.fillStyle = '#1DB954';
+                        ctx.font = 'bold 28px -apple-system';
+                        ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 50);
+
+                        // Convert to blob and share
+                        canvas.toBlob(async (blob) => {
+                            const file = new File([blob], 'top-tracks-mix.png', { type: 'image/png' });
+
+                            if (navigator.share && navigator.canShare({ files: [file] })) {
+                                try {
+                                    await navigator.share({
+                                        files: [file],
+                                        title: 'My Top Tracks Mix',
+                                        text: `Check out my personalized top tracks mix on MelodySearch!`
+                                    });
+                                    console.log('[Top Tracks] Shared successfully!');
+                                } catch (error) {
+                                    console.log('[Top Tracks] Share cancelled or failed:', error);
+                                    this.downloadCollage(blob);
+                                }
+                            } else {
+                                this.downloadCollage(blob);
+                            }
+                        }, 'image/png');
+
+                    } catch (error) {
+                        console.error('[Top Tracks] Error generating collage:', error);
+                        alert('Failed to generate collage. Please try again.');
+                    }
+                }
+
+                downloadCollage(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'top-tracks-mix.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    console.log('[Top Tracks] Downloaded collage');
+                }
+
+                // ===== SELECTION MODE =====
+                toggleSelectionMode() {
+                    this.selectionMode = !this.selectionMode;
+
+                    const selectBtn = document.getElementById('topTracksSelectBtn');
+                    const selectionActions = document.getElementById('topTracksSelectionActions');
+                    const albums = document.querySelectorAll('#topTracksMoodBoard .mood-board-album');
+
+                    if (this.selectionMode) {
+                        selectBtn.style.background = '#1DB954';
+                        selectBtn.style.borderColor = '#1DB954';
+                        selectionActions.style.display = 'block';
+                        albums.forEach(album => album.classList.add('selectable'));
+                        this.attachSelectionListeners();
+                    } else {
+                        selectBtn.style.background = '';
+                        selectBtn.style.borderColor = '';
+                        selectionActions.style.display = 'none';
+                        albums.forEach(album => {
+                            album.classList.remove('selectable', 'selected');
+                        });
+                        this.selectedAlbums = [];
+                    }
+
+                    this.updateSelectionCount();
+                }
+
+                attachSelectionListeners() {
+                    const albums = document.querySelectorAll('#topTracksMoodBoard .mood-board-album');
+                    albums.forEach((album, index) => {
+                        album.onclick = () => {
+                            if (!this.selectionMode) return;
+
+                            const track = this.playlistData.tracks[index];
+                            if (!track) return;
+
+                            const isSelected = album.classList.contains('selected');
+                            if (isSelected) {
+                                album.classList.remove('selected');
+                                this.selectedAlbums = this.selectedAlbums.filter(t => t.id !== track.id);
+                            } else {
+                                album.classList.add('selected');
+                                this.selectedAlbums.push({
+                                    url: track.album_art,
+                                    thumb_url: track.album_art,
+                                    title: track.name,
+                                    artist: track.artist,
+                                    type: 'album',
+                                    source: 'spotify'
+                                });
+                            }
+
+                            this.updateSelectionCount();
+                        };
+                    });
+                }
+
+                updateSelectionCount() {
+                    document.getElementById('topTracksSelectionCount').textContent = this.selectedAlbums.length;
+                }
+
+                clearSelection() {
+                    this.selectedAlbums = [];
+                    const albums = document.querySelectorAll('#topTracksMoodBoard .mood-board-album');
+                    albums.forEach(album => album.classList.remove('selected'));
+                    this.updateSelectionCount();
+                }
+
+                // ===== SAVE TO MOOD BOARD =====
+                async saveToNewBoard() {
+                    if (this.selectedAlbums.length === 0) {
+                        alert('Please select at least one album first!');
+                        return;
+                    }
+
+                    const boardName = prompt('Enter a name for your new mood board:');
+                    if (!boardName) return;
+
+                    try {
+                        const response = await fetch('/mood-board/save', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: boardName,
+                                images: this.selectedAlbums
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            alert(`✅ Created "${boardName}" with ${this.selectedAlbums.length} albums!`);
+                            this.clearSelection();
+                            this.toggleSelectionMode();
+                        } else {
+                            alert('Failed to save mood board: ' + (data.message || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('[Top Tracks] Error saving to new board:', error);
+                        alert('Failed to save mood board. Please try again.');
+                    }
+                }
+
+                async saveToExistingBoard() {
+                    if (this.selectedAlbums.length === 0) {
+                        alert('Please select at least one album first!');
+                        return;
+                    }
+
+                    // Get saved boards
+                    try {
+                        const response = await fetch('/mood-board/saved');
+                        const data = await response.json();
+
+                        if (data.success && data.boards.length > 0) {
+                            const boardList = data.boards.map((b, i) => `${i + 1}. ${b.name} (${b.image_count} images)`).join('\n');
+                            const selection = prompt(`Select a board by number:\n\n${boardList}\n\nEnter number:`);
+
+                            if (!selection) return;
+
+                            const boardIndex = parseInt(selection) - 1;
+                            if (boardIndex < 0 || boardIndex >= data.boards.length) {
+                                alert('Invalid selection');
+                                return;
+                            }
+
+                            const selectedBoard = data.boards[boardIndex];
+
+                            // Add images to existing board
+                            const addResponse = await fetch(`/mood-board/saved/${selectedBoard.id}/add-images`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    images: this.selectedAlbums
+                                })
+                            });
+
+                            const addData = await addResponse.json();
+                            if (addData.success) {
+                                alert(`✅ Added ${this.selectedAlbums.length} albums to "${selectedBoard.name}"!`);
+                                this.clearSelection();
+                                this.toggleSelectionMode();
+                            } else {
+                                alert('Failed to add to board: ' + (addData.message || 'Unknown error'));
+                            }
+                        } else {
+                            alert('No saved boards found. Create a new board instead!');
+                        }
+                    } catch (error) {
+                        console.error('[Top Tracks] Error saving to existing board:', error);
+                        alert('Failed to save to existing board. Please try again.');
+                    }
+                }
+
+                refreshPlaylist() {
+                    this.loadTopTracksPlaylist();
+                }
+            }
+
             // Initialize managers
             window.nowPlayingManager = new NowPlayingManager();
             window.recentlyPlayedManager = new RecentlyPlayedManager();
             window.moodBoardManager = new MoodBoardManager();
+            window.topTracksManager = new TopTracksManager();
 
             // Add fadeIn animation
             const fadeInStyle = document.createElement('style');
