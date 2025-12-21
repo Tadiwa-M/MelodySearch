@@ -2728,45 +2728,61 @@ def get_mood_board():
             except Exception as e:
                 logging.warning(f"Could not fetch artist data: {e}")
 
-        # Prepare Spotify fallback images
-        for idx, track in enumerate(all_tracks[:15]):
+        # Prepare Spotify images (PRIMARY SOURCE - artist photos and album covers)
+        # Expand to get more Spotify images
+        for idx, track in enumerate(all_tracks[:30]):  # Increased from 15 to 30
             if idx % 3 == 0 and track['artist_id'] in artist_images:
+                # Artist photo
                 spotify_fallback_images.append({
                     'url': artist_images[track['artist_id']],
+                    'thumb_url': artist_images[track['artist_id']],
                     'title': track['artist'],
                     'artist': track['artist'],
                     'type': 'artist',
                     'source': 'spotify'
                 })
-            elif track['album_art']:
+            if track['album_art']:
+                # Album cover
                 spotify_fallback_images.append({
                     'url': track['album_art'],
+                    'thumb_url': track['album_art'],
                     'title': track['name'],
                     'artist': track['artist'],
                     'type': 'album',
                     'source': 'spotify'
                 })
 
-        # Try to fetch aesthetic images from Unsplash
+        # MIX Spotify (80%) + Unsplash (20%) for best of both worlds
+        # Spotify = Actual artist photos and album covers (what user wants)
+        # Unsplash = A few aesthetic photos for variety
         images = []
-        image_source = 'spotify'  # Default to Spotify
+        image_source = 'spotify+unsplash'
 
         try:
             image_service = get_image_service()
-            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=120)
+            # Fetch fewer Unsplash images (only 20% of total)
+            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=25)
 
-            if unsplash_images:
-                images = unsplash_images
-                image_source = 'unsplash'
-                logging.info(f"Successfully fetched {len(images)} images from Unsplash")
-            else:
-                # Fallback to Spotify images
-                images = spotify_fallback_images
-                logging.info("No Unsplash images available, using Spotify fallback")
+            # Mix: 80 Spotify images + 20 Unsplash images = 100 total
+            import random
+
+            # Take up to 80 Spotify images (or all if less)
+            spotify_portion = spotify_fallback_images[:80]
+
+            # Take up to 20 Unsplash images (or all if less)
+            unsplash_portion = unsplash_images[:20] if unsplash_images else []
+
+            # Combine and shuffle for variety
+            images = spotify_portion + unsplash_portion
+            random.shuffle(images)
+
+            logging.info(f"Mixed mood board: {len(spotify_portion)} Spotify + {len(unsplash_portion)} Unsplash = {len(images)} total")
+
         except Exception as e:
-            # Fallback to Spotify images on error
-            logging.warning(f"Error fetching Unsplash images, falling back to Spotify: {e}")
-            images = spotify_fallback_images
+            # Fallback to 100% Spotify images on error
+            logging.warning(f"Error fetching Unsplash images, using Spotify only: {e}")
+            images = spotify_fallback_images[:100]
+            image_source = 'spotify'
 
         return jsonify({
             "success": True,
