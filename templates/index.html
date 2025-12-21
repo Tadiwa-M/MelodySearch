@@ -3733,9 +3733,11 @@
 
                 startAutoRefresh() {
                     this.stopAutoRefresh();
+                    console.log('[Recently Played] Starting auto-refresh (every 10s)');
                     this.refreshInterval = setInterval(() => {
                         const currentTab = document.querySelector('.tab-content.active');
                         if (currentTab && currentTab.dataset.tabContent === 'recently-played') {
+                            console.log('[Recently Played] Auto-refreshing...');
                             this.loadRecentlyPlayed();
                         }
                     }, 10000); // Refresh every 10 seconds (same as now playing)
@@ -4733,10 +4735,18 @@
                     const scrollContainer = document.getElementById('moodBoardGrid');
                     const header = document.querySelector('.mood-board-header');
 
-                    if (!scrollContainer || !header) return;
+                    if (!scrollContainer || !header) {
+                        console.log('[Auto-hide] Missing elements:', { scrollContainer: !!scrollContainer, header: !!header });
+                        return;
+                    }
 
                     let lastScrollTop = 0;
                     const scrollThreshold = 50; // Minimum scroll distance to trigger hide/show
+
+                    // Remove existing listener if any
+                    if (this.scrollListener) {
+                        scrollContainer.removeEventListener('scroll', this.scrollListener);
+                    }
 
                     this.scrollListener = () => {
                         const scrollTop = scrollContainer.scrollTop;
@@ -4745,16 +4755,19 @@
                         // Scrolling down & past threshold
                         if (scrollDiff > 5 && scrollTop > scrollThreshold) {
                             header.classList.add('hidden');
+                            console.log('[Auto-hide] Header hidden at scrollTop:', scrollTop);
                         }
                         // Scrolling up
                         else if (scrollDiff < -5) {
                             header.classList.remove('hidden');
+                            console.log('[Auto-hide] Header shown at scrollTop:', scrollTop);
                         }
 
                         lastScrollTop = scrollTop;
                     };
 
-                    scrollContainer.addEventListener('scroll', this.scrollListener);
+                    scrollContainer.addEventListener('scroll', this.scrollListener, { passive: true });
+                    console.log('[Auto-hide] Scroll listener attached');
                 }
 
                 toggleSearch() {

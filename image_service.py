@@ -358,17 +358,18 @@ class ImageService:
                 track.get('artist', ''),
                 track.get('genres', [])
             )
-            # Mix in diverse keywords (not just artist name)
-            diverse_keywords = [k for k in keywords if not k.endswith(' aesthetic') or random.random() > 0.5]
-            all_keywords.extend(diverse_keywords[:2])  # Take top 2 per track
+            # Include MORE artist/song-related keywords (not just generic aesthetics)
+            # Prioritize keywords that include artist name, album, or music-specific terms
+            all_keywords.extend(keywords[:4])  # Take top 4 per track (increased from 2)
 
-        # Add generic aesthetic keywords for variety
+        # Add a FEW generic aesthetic keywords for variety (reduced from 5 to 2)
+        # Most photos should be artist/music-related, not just random aesthetics
         generic_keywords = [
             "retro aesthetic", "neon lights", "vinyl records", "music studio",
             "concert vibes", "indie aesthetic", "urban photography", "abstract art",
             "moody photography", "film photography", "vintage camera", "cassette tape aesthetic"
         ]
-        all_keywords.extend(random.sample(generic_keywords, min(5, len(generic_keywords))))
+        all_keywords.extend(random.sample(generic_keywords, min(2, len(generic_keywords))))
 
         # Shuffle keywords for randomness
         random.shuffle(all_keywords)
