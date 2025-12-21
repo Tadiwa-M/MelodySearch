@@ -287,44 +287,76 @@ class ImageService:
         Returns:
             List of image dictionaries
         """
+        import random
+
         all_images = []
-        images_per_track = max(1, total_images // len(tracks)) if tracks else 1
+
+        # Deduplicate by (artist, album) to avoid repetitive searches
+        seen_combinations = set()
+        unique_tracks = []
 
         for track in tracks:
-            if len(all_images) >= total_images:
-                break
+            key = (track.get('artist', '').lower(), track.get('album', '').lower())
+            if key not in seen_combinations and key != ('', ''):
+                seen_combinations.add(key)
+                unique_tracks.append(track)
 
-            # Generate keywords for this track
+        if not unique_tracks:
+            unique_tracks = tracks[:5]  # Fallback to first 5 if deduplication fails
+
+        # Calculate images per unique track
+        images_per_track = max(1, total_images // len(unique_tracks)) if unique_tracks else 1
+
+        # Generate diverse keywords from all tracks
+        all_keywords = []
+        for track in unique_tracks:
             keywords = self.generate_mood_keywords(
                 track.get('name', ''),
                 track.get('artist', ''),
                 track.get('genres', [])
             )
+            # Mix in diverse keywords (not just artist name)
+            diverse_keywords = [k for k in keywords if not k.endswith(' aesthetic') or random.random() > 0.5]
+            all_keywords.extend(diverse_keywords[:2])  # Take top 2 per track
 
-            # Try each keyword until we get images
-            for keyword in keywords:
-                if len(all_images) >= total_images:
-                    break
+        # Add generic aesthetic keywords for variety
+        generic_keywords = [
+            "retro aesthetic", "neon lights", "vinyl records", "music studio",
+            "concert vibes", "indie aesthetic", "urban photography", "abstract art",
+            "moody photography", "film photography", "vintage camera", "cassette tape aesthetic"
+        ]
+        all_keywords.extend(random.sample(generic_keywords, min(5, len(generic_keywords))))
 
-                images = self.search_images(
-                    keyword,
-                    count=images_per_track,
-                    orientation='portrait'
-                )
+        # Shuffle keywords for randomness
+        random.shuffle(all_keywords)
 
-                # Add track context to images
+        # Fetch images using diverse keywords
+        keywords_used = set()
+        for keyword in all_keywords:
+            if len(all_images) >= total_images:
+                break
+
+            # Skip if we already used this exact keyword
+            if keyword.lower() in keywords_used:
+                continue
+            keywords_used.add(keyword.lower())
+
+            images = self.search_images(
+                keyword,
+                count=min(images_per_track, total_images - len(all_images)),
+                orientation='portrait'
+            )
+
+            # Add track context to images (use first unique track)
+            if unique_tracks:
+                track = unique_tracks[len(all_images) % len(unique_tracks)]
                 for img in images:
                     img['related_track'] = track.get('name')
                     img['related_artist'] = track.get('artist')
 
-                all_images.extend(images)
+            all_images.extend(images)
 
-                # If we got images, move to next track
-                if images:
-                    break
-
-        # Return up to total_images, shuffled for variety
-        import random
+        # Shuffle for variety
         random.shuffle(all_images)
         return all_images[:total_images]
 
