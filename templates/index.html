@@ -4035,31 +4035,40 @@
                     canvas.height = canvasHeight;
                     const ctx = canvas.getContext('2d');
 
-                    // VIBRANT gradient like Spotify Wrapped
+                    // PREMIUM dark background with subtle gradient
                     const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-                    gradient.addColorStop(0, '#1DB954');  // Spotify green
-                    gradient.addColorStop(0.3, '#1ed760');
-                    gradient.addColorStop(0.7, '#1aa34a');
-                    gradient.addColorStop(1, '#117a37');
+                    gradient.addColorStop(0, '#0a0a0a');  // Very dark
+                    gradient.addColorStop(0.5, '#1a1a1a');
+                    gradient.addColorStop(1, '#0a0a0a');
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-                    // Header - Bold and eye-catching like Wrapped
+                    // Add subtle noise texture for depth (premium feel)
+                    for (let i = 0; i < 2000; i++) {
+                        const x = Math.random() * canvasWidth;
+                        const y = Math.random() * canvasHeight;
+                        const opacity = Math.random() * 0.03;
+                        ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+
+                    // Header - Clean and modern
                     const boardTitle = 'Your Music Vibe';
                     const trackCount = this.moodData.track_count || 0;
 
-                    // Header text - LARGE and bold
+                    // Large bold title
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.font = 'bold 68px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                    ctx.shadowBlur = 20;
                     ctx.fillText(boardTitle, canvasWidth / 2, 100);
 
-                    // Stats - prominent and clear
-                    ctx.shadowBlur = 0;
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    // Subtle underline accent
+                    ctx.fillStyle = '#1DB954'; // Spotify green accent
+                    ctx.fillRect(canvasWidth / 2 - 100, 120, 200, 3);
+
+                    // Stats - clean and minimal
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.font = '26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.fillText(`${trackCount} tracks • ${imagesToUse.length} moments`, canvasWidth / 2, 160);
 
                     // Clean grid layout (3x4) instead of masonry
@@ -4108,16 +4117,28 @@
 
                                 ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
 
-                                // Add artist name overlay for Spotify images
+                                // Add premium overlay with artist name
                                 if (imgData.source === 'spotify' && imgData.artist) {
-                                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                                    ctx.fillRect(x, y + imgHeight - 40, imgWidth, 40);
+                                    // Gradient overlay at bottom
+                                    const overlayGradient = ctx.createLinearGradient(x, y + imgHeight - 50, x, y + imgHeight);
+                                    overlayGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                                    overlayGradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+                                    ctx.fillStyle = overlayGradient;
+                                    ctx.fillRect(x, y + imgHeight - 50, imgWidth, 50);
 
+                                    // Artist name - clean typography
                                     ctx.fillStyle = '#ffffff';
-                                    ctx.font = 'bold 16px -apple-system';
+                                    ctx.font = 'bold 15px -apple-system';
                                     ctx.textAlign = 'left';
                                     ctx.fillText(imgData.artist, x + 10, y + imgHeight - 15);
                                 }
+
+                                // Subtle glow effect around each image for depth
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                                ctx.shadowBlur = 15;
+                                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(x, y, imgWidth, imgHeight);
 
                                 ctx.restore();
                                 resolve();
@@ -4133,32 +4154,36 @@
 
                     await Promise.all(imagePromises);
 
-                    // Footer - Clean and branded like Spotify
+                    // Footer - Sleek and premium
                     const footerY = canvasHeight - footerHeight;
 
-                    // Dark overlay
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    // Subtle gradient overlay
+                    const footerGradient = ctx.createLinearGradient(0, footerY, 0, canvasHeight);
+                    footerGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+                    footerGradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+                    ctx.fillStyle = footerGradient;
                     ctx.fillRect(0, footerY, canvasWidth, footerHeight);
 
-                    // App name - BIG and bold
+                    // Green accent line
+                    ctx.fillStyle = '#1DB954';
+                    ctx.fillRect(0, footerY, canvasWidth, 2);
+
+                    // App name - clean and bold
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 56px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.font = 'bold 52px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                    ctx.shadowBlur = 15;
-                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 70);
+                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 65);
 
-                    // Date and tagline
-                    ctx.shadowBlur = 0;
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    // Date - subtle
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.font = '24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                    ctx.fillText(date, canvasWidth / 2, footerY + 120);
+                    ctx.fillText(date, canvasWidth / 2, footerY + 110);
 
-                    // URL
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                    ctx.font = '22px -apple-system';
-                    ctx.fillText('melodysearch.onrender.com', canvasWidth / 2, footerY + 155);
+                    // URL - very subtle
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.font = '18px -apple-system';
+                    ctx.fillText('melodysearch.onrender.com', canvasWidth / 2, footerY + 140);
 
                     // Convert canvas to blob
                     return new Promise((resolve) => {
