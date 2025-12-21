@@ -233,6 +233,9 @@ class ImageService:
         """
         Generate search keywords for mood board based on track metadata
 
+        IMPORTANT: Generate ABSTRACT aesthetic keywords, NOT literal artist/song names
+        to avoid photos OF the artist and get true aesthetic imagery instead
+
         Args:
             track_name: Name of the track
             artist_name: Name of the artist
@@ -243,28 +246,50 @@ class ImageService:
         """
         keywords = []
 
-        # Strategy 1: Artist + aesthetic
-        keywords.append(f"{artist_name} aesthetic")
-
-        # Strategy 2: Genre + vibes/aesthetic
+        # Strategy 1: Genre-based aesthetics (NEVER use artist name directly)
         if genres:
-            for genre in genres[:2]:  # Limit to first 2 genres
-                keywords.append(f"{genre} vibes")
-                keywords.append(f"{genre} aesthetic")
+            for genre in genres[:3]:  # Top 3 genres
+                genre_lower = genre.lower()
+                # Map genres to visual aesthetics
+                if 'hip hop' in genre_lower or 'rap' in genre_lower:
+                    keywords.extend(['urban street photography', 'city nights aesthetic', 'graffiti art'])
+                elif 'indie' in genre_lower or 'alternative' in genre_lower:
+                    keywords.extend(['indie aesthetic', 'vintage film photography', 'retro cameras'])
+                elif 'electronic' in genre_lower or 'edm' in genre_lower:
+                    keywords.extend(['neon lights aesthetic', 'cyberpunk city', 'futuristic vibes'])
+                elif 'rock' in genre_lower:
+                    keywords.extend(['concert aesthetic', 'vintage records', 'electric guitar aesthetic'])
+                elif 'pop' in genre_lower:
+                    keywords.extend(['colorful aesthetic', 'modern photography', 'vibrant colors'])
+                elif 'r&b' in genre_lower or 'soul' in genre_lower:
+                    keywords.extend(['moody aesthetic', 'sunset vibes', 'warm tones photography'])
+                elif 'jazz' in genre_lower:
+                    keywords.extend(['jazz club aesthetic', 'vinyl records', 'dim lighting photography'])
+                else:
+                    keywords.append(f"{genre} vibes")
 
-        # Strategy 3: Track name + mood
-        keywords.append(f"{track_name} mood")
-
-        # Strategy 4: Generic mood keywords based on common music vibes
+        # Strategy 2: Abstract mood/vibe keywords (generic but aesthetic)
         mood_keywords = [
-            "music aesthetic",
-            "indie aesthetic",
-            "retro vibes",
-            "neon lights aesthetic",
-            "concert aesthetic",
-            "vinyl aesthetic"
+            "music aesthetic photography",
+            "retro aesthetic vibes",
+            "neon lights city",
+            "concert crowd aesthetic",
+            "vinyl records collection",
+            "cassette tape aesthetic",
+            "music studio vibes",
+            "headphones aesthetic",
+            "urban night photography",
+            "abstract colorful art",
+            "film photography aesthetic",
+            "vintage camera aesthetic",
+            "moody dark photography",
+            "sunset golden hour",
+            "city skyline night",
+            "artistic portrait photography",
+            "creative visual aesthetic",
+            "modern minimalist design"
         ]
-        keywords.extend(mood_keywords[:2])
+        keywords.extend(mood_keywords[:4])  # Add 4 random generic aesthetics
 
         # Remove duplicates while preserving order
         seen = set()

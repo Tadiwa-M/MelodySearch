@@ -3980,24 +3980,41 @@
                 }
 
                 async generateMoodBoardImage() {
-                    // Create a 3x4 grid collage of first 12 images
+                    // Create a branded collage similar to Airbuds style
                     const imagesToUse = this.moodData.images.slice(0, 12);
                     const cols = 3;
                     const rows = 4;
-                    const imageSize = 400; // Each image will be 400x400px
+                    const imageSize = 350; // Each image will be 350x350px
+                    const padding = 100; // Top padding for header
+                    const bottomPadding = 120; // Bottom padding for footer
                     const canvasWidth = cols * imageSize;
-                    const canvasHeight = rows * imageSize;
+                    const canvasHeight = (rows * imageSize) + padding + bottomPadding;
 
                     const canvas = document.createElement('canvas');
                     canvas.width = canvasWidth;
                     canvas.height = canvasHeight;
                     const ctx = canvas.getContext('2d');
 
-                    // Background
-                    ctx.fillStyle = '#121212';
+                    // Gradient background (MelodySearch theme)
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
+                    gradient.addColorStop(0, '#1a0a2e');  // Dark purple
+                    gradient.addColorStop(0.5, '#16213e'); // Dark blue
+                    gradient.addColorStop(1, '#0f3460');  // Deep blue
+                    ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-                    // Load and draw images
+                    // Header section
+                    const boardTitle = document.getElementById('moodBoardTitle').textContent || 'My Mood Board';
+                    const imageCount = this.moodData.images.length;
+
+                    // Title
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(boardTitle, canvasWidth / 2, 60);
+
+                    // Load and draw images in grid
+                    const imageY = padding;
                     const imagePromises = imagesToUse.map((imgData, index) => {
                         return new Promise((resolve) => {
                             const img = new Image();
@@ -4007,7 +4024,13 @@
                                 const col = index % cols;
                                 const row = Math.floor(index / cols);
                                 const x = col * imageSize;
-                                const y = row * imageSize;
+                                const y = imageY + (row * imageSize);
+
+                                // Add subtle border/shadow
+                                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                                ctx.shadowBlur = 10;
+                                ctx.shadowOffsetX = 0;
+                                ctx.shadowOffsetY = 4;
 
                                 // Draw image (cover fit)
                                 const scale = Math.max(imageSize / img.width, imageSize / img.height);
@@ -4017,6 +4040,7 @@
                                 const offsetY = y + (imageSize - scaledHeight) / 2;
 
                                 ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                                ctx.shadowColor = 'transparent'; // Reset shadow
                                 resolve();
                             };
 
@@ -4025,7 +4049,7 @@
                                 ctx.fillStyle = '#282828';
                                 const col = index % cols;
                                 const row = Math.floor(index / cols);
-                                ctx.fillRect(col * imageSize, row * imageSize, imageSize, imageSize);
+                                ctx.fillRect(col * imageSize, imageY + (row * imageSize), imageSize, imageSize);
                                 resolve();
                             };
 
@@ -4034,6 +4058,27 @@
                     });
 
                     await Promise.all(imagePromises);
+
+                    // Footer section
+                    const footerY = canvasHeight - bottomPadding + 20;
+
+                    // App branding
+                    ctx.fillStyle = '#1ed760'; // Spotify green
+                    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY);
+
+                    // Stats
+                    ctx.fillStyle = '#b3b3b3';
+                    ctx.font = '22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    const statsText = `${imageCount} aesthetic images • ${this.moodData.track_count || 'Custom'} tracks`;
+                    ctx.fillText(statsText, canvasWidth / 2, footerY + 35);
+
+                    // Date
+                    const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    ctx.fillStyle = '#888';
+                    ctx.font = '18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.fillText(date, canvasWidth / 2, footerY + 60);
 
                     // Convert canvas to blob
                     return new Promise((resolve) => {
