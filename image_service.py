@@ -45,15 +45,21 @@ class ImageService:
             return []
 
         try:
+            import random
+
             endpoint = f'{self.unsplash_base_url}/search/photos'
             headers = {
                 'Authorization': f'Client-ID {self.unsplash_access_key}',
                 'Accept-Version': 'v1'
             }
 
+            # Request MORE images than needed, then randomly sample
+            # This prevents getting the same top results every time
+            request_count = min(count * 3, 30)  # Request 3x what we need (max 30)
+
             params = {
                 'query': query,
-                'per_page': min(count, 30),
+                'per_page': request_count,
                 'orientation': orientation,
                 'content_filter': 'high',
             }
@@ -79,6 +85,10 @@ class ImageService:
                     'width': photo['width'],
                     'height': photo['height']
                 })
+
+            # Randomly sample to get variety (not just top results)
+            if len(images) > count:
+                images = random.sample(images, count)
 
             logging.info(f"Fetched {len(images)} images from Unsplash for query: {query}")
             return images
@@ -233,8 +243,9 @@ class ImageService:
         """
         Generate search keywords for mood board based on track metadata
 
-        IMPORTANT: Generate ABSTRACT aesthetic keywords, NOT literal artist/song names
-        to avoid photos OF the artist and get true aesthetic imagery instead
+        Creates a DIVERSE MIX of:
+        - Artist-related photos (album covers, artist aesthetic) ~20-30%
+        - Pure aesthetic/vibe photos related to genre/mood ~70-80%
 
         Args:
             track_name: Name of the track
@@ -246,7 +257,14 @@ class ImageService:
         """
         keywords = []
 
-        # Strategy 1: Genre-based aesthetics (NEVER use artist name directly)
+        # Strategy 1: Artist-related (MULTIPLE variations for diversity)
+        # This gives different types of artist photos instead of same image repeated
+        keywords.append(f"{artist_name} aesthetic")
+        keywords.append(f"{artist_name} concert")
+        keywords.append(f"{artist_name} portrait")
+        keywords.append(f"{artist_name} studio")
+
+        # Strategy 2: Genre-based aesthetics (for variety)
         if genres:
             for genre in genres[:3]:  # Top 3 genres
                 genre_lower = genre.lower()
@@ -268,7 +286,7 @@ class ImageService:
                 else:
                     keywords.append(f"{genre} vibes")
 
-        # Strategy 2: Abstract mood/vibe keywords (generic but aesthetic)
+        # Strategy 3: Abstract mood/vibe keywords (for maximum variety)
         mood_keywords = [
             "music aesthetic photography",
             "retro aesthetic vibes",
@@ -289,7 +307,7 @@ class ImageService:
             "creative visual aesthetic",
             "modern minimalist design"
         ]
-        keywords.extend(mood_keywords[:4])  # Add 4 random generic aesthetics
+        keywords.extend(mood_keywords[:6])  # Add 6 generic aesthetics for variety
 
         # Remove duplicates while preserving order
         seen = set()

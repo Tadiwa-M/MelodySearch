@@ -3044,13 +3044,15 @@
                     window.nowPlayingManager.startAutoRefresh();
                 } else if (tabName === 'recently-played') {
                     window.recentlyPlayedManager.loadRecentlyPlayed();
+                    window.recentlyPlayedManager.startAutoRefresh();
                 } else if (tabName === 'mood-board') {
                     window.moodBoardManager.loadMoodBoard();
                     // Enter full-screen mode on mobile
                     window.moodBoardManager.enterFullscreen();
                 } else {
-                    // Stop auto-refresh when switching away from now-playing
+                    // Stop auto-refresh when switching away from now-playing and recently-played
                     window.nowPlayingManager.stopAutoRefresh();
+                    window.recentlyPlayedManager.stopAutoRefresh();
                     // Exit full-screen mode when leaving mood board
                     window.moodBoardManager.exitFullscreen();
                 }
@@ -3643,6 +3645,7 @@
             class RecentlyPlayedManager {
                 constructor() {
                     this.tracks = [];
+                    this.refreshInterval = null;
                 }
 
                 async loadRecentlyPlayed() {
@@ -3726,6 +3729,23 @@
                     const weeks = Math.floor(days / 7);
                     if (weeks < 4) return `${weeks}w ago`;
                     return date.toLocaleDateString();
+                }
+
+                startAutoRefresh() {
+                    this.stopAutoRefresh();
+                    this.refreshInterval = setInterval(() => {
+                        const currentTab = document.querySelector('.tab-content.active');
+                        if (currentTab && currentTab.dataset.tabContent === 'recently-played') {
+                            this.loadRecentlyPlayed();
+                        }
+                    }, 10000); // Refresh every 10 seconds (same as now playing)
+                }
+
+                stopAutoRefresh() {
+                    if (this.refreshInterval) {
+                        clearInterval(this.refreshInterval);
+                        this.refreshInterval = null;
+                    }
                 }
             }
 
@@ -3980,77 +4000,106 @@
                 }
 
                 async generateMoodBoardImage() {
-                    // Create a branded collage similar to Airbuds style
-                    const imagesToUse = this.moodData.images.slice(0, 12);
-                    const cols = 3;
-                    const rows = 4;
-                    const imageSize = 350; // Each image will be 350x350px
-                    const padding = 100; // Top padding for header
-                    const bottomPadding = 120; // Bottom padding for footer
-                    const canvasWidth = cols * imageSize;
-                    const canvasHeight = (rows * imageSize) + padding + bottomPadding;
+                    // Create a vibrant, aesthetic collage for sharing
+                    const imagesToUse = this.moodData.images.slice(0, 18); // More images for better flow
+                    const canvasWidth = 1080; // Instagram story size
+                    const canvasHeight = 1920;
+                    const headerHeight = 140;
+                    const footerHeight = 140;
+                    const gap = 8; // Space between images for modern look
+                    const borderRadius = 12;
 
                     const canvas = document.createElement('canvas');
                     canvas.width = canvasWidth;
                     canvas.height = canvasHeight;
                     const ctx = canvas.getContext('2d');
 
-                    // Gradient background (MelodySearch theme)
+                    // Vibrant gradient background
                     const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-                    gradient.addColorStop(0, '#1a0a2e');  // Dark purple
-                    gradient.addColorStop(0.5, '#16213e'); // Dark blue
-                    gradient.addColorStop(1, '#0f3460');  // Deep blue
+                    gradient.addColorStop(0, '#667eea');  // Purple
+                    gradient.addColorStop(0.5, '#764ba2'); // Deep purple
+                    gradient.addColorStop(1, '#f093fb');  // Pink
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-                    // Header section
+                    // Header - Stylish and minimal
                     const boardTitle = document.getElementById('moodBoardTitle').textContent || 'My Mood Board';
                     const imageCount = this.moodData.images.length;
 
-                    // Title
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 42px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(boardTitle, canvasWidth / 2, 60);
+                    // Semi-transparent overlay for header
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.fillRect(0, 0, canvasWidth, headerHeight);
 
-                    // Load and draw images in grid
-                    const imageY = padding;
+                    // Title with modern styling
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 52px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(boardTitle, canvasWidth / 2, 70);
+
+                    // Subtitle
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.font = '24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.fillText(`${imageCount} aesthetic photos`, canvasWidth / 2, 110);
+
+                    // Pinterest-style masonry layout with 3 columns
+                    const contentHeight = canvasHeight - headerHeight - footerHeight;
+                    const colWidth = (canvasWidth - (4 * gap)) / 3;
+                    const columnHeights = [0, 0, 0]; // Track height of each column
+
+                    // Helper function to draw rounded rectangle
+                    const drawRoundedImage = (img, x, y, width, height) => {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(x + borderRadius, y);
+                        ctx.lineTo(x + width - borderRadius, y);
+                        ctx.quadraticCurveTo(x + width, y, x + width, y + borderRadius);
+                        ctx.lineTo(x + width, y + height - borderRadius);
+                        ctx.quadraticCurveTo(x + width, y + height, x + width - borderRadius, y + height);
+                        ctx.lineTo(x + borderRadius, y + height);
+                        ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
+                        ctx.lineTo(x, y + borderRadius);
+                        ctx.quadraticCurveTo(x, y, x + borderRadius, y);
+                        ctx.closePath();
+                        ctx.clip();
+
+                        // Draw image to fill the rounded rect
+                        const scale = Math.max(width / img.width, height / img.height);
+                        const scaledWidth = img.width * scale;
+                        const scaledHeight = img.height * scale;
+                        const offsetX = x + (width - scaledWidth) / 2;
+                        const offsetY = y + (height - scaledHeight) / 2;
+
+                        ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                        ctx.restore();
+                    };
+
+                    // Load and draw images in masonry layout
                     const imagePromises = imagesToUse.map((imgData, index) => {
                         return new Promise((resolve) => {
                             const img = new Image();
                             img.crossOrigin = 'anonymous';
 
                             img.onload = () => {
-                                const col = index % cols;
-                                const row = Math.floor(index / cols);
-                                const x = col * imageSize;
-                                const y = imageY + (row * imageSize);
+                                // Find shortest column
+                                const shortestCol = columnHeights.indexOf(Math.min(...columnHeights));
 
-                                // Add subtle border/shadow
-                                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                                ctx.shadowBlur = 10;
-                                ctx.shadowOffsetX = 0;
-                                ctx.shadowOffsetY = 4;
+                                // Vary image heights for visual interest (tall, medium, square)
+                                const heightVariants = [colWidth * 1.4, colWidth, colWidth * 0.7];
+                                const imageHeight = heightVariants[index % 3];
 
-                                // Draw image (cover fit)
-                                const scale = Math.max(imageSize / img.width, imageSize / img.height);
-                                const scaledWidth = img.width * scale;
-                                const scaledHeight = img.height * scale;
-                                const offsetX = x + (imageSize - scaledWidth) / 2;
-                                const offsetY = y + (imageSize - scaledHeight) / 2;
+                                const x = gap + (shortestCol * (colWidth + gap));
+                                const y = headerHeight + gap + columnHeights[shortestCol];
 
-                                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-                                ctx.shadowColor = 'transparent'; // Reset shadow
+                                // Only draw if it fits in the content area
+                                if (y + imageHeight <= canvasHeight - footerHeight - gap) {
+                                    drawRoundedImage(img, x, y, colWidth, imageHeight);
+                                    columnHeights[shortestCol] += imageHeight + gap;
+                                }
                                 resolve();
                             };
 
                             img.onerror = () => {
-                                // Draw placeholder for failed images
-                                ctx.fillStyle = '#282828';
-                                const col = index % cols;
-                                const row = Math.floor(index / cols);
-                                ctx.fillRect(col * imageSize, imageY + (row * imageSize), imageSize, imageSize);
-                                resolve();
+                                resolve(); // Skip failed images
                             };
 
                             img.src = imgData.thumb_url || imgData.url;
@@ -4059,26 +4108,25 @@
 
                     await Promise.all(imagePromises);
 
-                    // Footer section
-                    const footerY = canvasHeight - bottomPadding + 20;
+                    // Footer - Modern and branded
+                    const footerY = canvasHeight - footerHeight;
 
-                    // App branding
-                    ctx.fillStyle = '#1ed760'; // Spotify green
-                    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    // Semi-transparent overlay for footer
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(0, footerY, canvasWidth, footerHeight);
+
+                    // App branding - more stylish
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY);
+                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 60);
 
                     // Stats
-                    ctx.fillStyle = '#b3b3b3';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                     ctx.font = '22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                    const statsText = `${imageCount} aesthetic images • ${this.moodData.track_count || 'Custom'} tracks`;
-                    ctx.fillText(statsText, canvasWidth / 2, footerY + 35);
-
-                    // Date
-                    const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                    ctx.fillStyle = '#888';
-                    ctx.font = '18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                    ctx.fillText(date, canvasWidth / 2, footerY + 60);
+                    const date = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                    const statsText = `${this.moodData.track_count || 'Custom'} tracks • ${date}`;
+                    ctx.fillText(statsText, canvasWidth / 2, footerY + 95);
 
                     // Convert canvas to blob
                     return new Promise((resolve) => {
