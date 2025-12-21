@@ -1259,8 +1259,10 @@
         }
 
         .mood-board-header {
-            position: sticky;
+            position: fixed;  /* Changed from sticky to fixed for better hide/show control */
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 1000;
             background: rgba(18, 18, 18, 0.95);
             backdrop-filter: blur(20px);
@@ -1269,17 +1271,20 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            transition: transform 0.3s ease, opacity 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateY(0);
             opacity: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
         }
 
         .mood-board-header.hidden {
             transform: translateY(-100%);
-            opacity: 0;
-            pointer-events: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Add padding to mood board content so fixed header doesn't cover it */
+        .mood-board-scroll {
+            padding-top: 70px;
         }
 
         .mood-board-title h2 {
@@ -4003,101 +4008,118 @@
                 }
 
                 async generateMoodBoardImage() {
-                    // Create a vibrant, aesthetic collage for sharing
-                    const imagesToUse = this.moodData.images.slice(0, 18); // More images for better flow
+                    // Create a VIBRANT, SHAREABLE collage like Airbuds/Spotify Wrapped
+                    // Filter out repetitive images and generic portraits
+                    const seenUrls = new Set();
+                    const uniqueImages = this.moodData.images.filter(img => {
+                        const url = img.thumb_url || img.url;
+                        if (seenUrls.has(url)) return false;
+                        seenUrls.add(url);
+                        // Prioritize Spotify images (album covers, artists) over generic Unsplash
+                        return true;
+                    });
+
+                    // Prioritize Spotify images, then fill with unique Unsplash
+                    const spotifyImages = uniqueImages.filter(img => img.source === 'spotify');
+                    const unsplashImages = uniqueImages.filter(img => img.source !== 'spotify');
+                    const imagesToUse = [...spotifyImages.slice(0, 12), ...unsplashImages.slice(0, 3)].slice(0, 12);
+
                     const canvasWidth = 1080; // Instagram story size
                     const canvasHeight = 1920;
-                    const headerHeight = 140;
-                    const footerHeight = 140;
-                    const gap = 8; // Space between images for modern look
-                    const borderRadius = 12;
+                    const headerHeight = 200;
+                    const footerHeight = 180;
+                    const gap = 6;
 
                     const canvas = document.createElement('canvas');
                     canvas.width = canvasWidth;
                     canvas.height = canvasHeight;
                     const ctx = canvas.getContext('2d');
 
-                    // Vibrant gradient background
+                    // VIBRANT gradient like Spotify Wrapped
                     const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
-                    gradient.addColorStop(0, '#667eea');  // Purple
-                    gradient.addColorStop(0.5, '#764ba2'); // Deep purple
-                    gradient.addColorStop(1, '#f093fb');  // Pink
+                    gradient.addColorStop(0, '#1DB954');  // Spotify green
+                    gradient.addColorStop(0.3, '#1ed760');
+                    gradient.addColorStop(0.7, '#1aa34a');
+                    gradient.addColorStop(1, '#117a37');
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-                    // Header - Stylish and minimal
-                    const boardTitle = document.getElementById('moodBoardTitle').textContent || 'My Mood Board';
-                    const imageCount = this.moodData.images.length;
+                    // Header - Bold and eye-catching like Wrapped
+                    const boardTitle = 'Your Music Vibe';
+                    const trackCount = this.moodData.track_count || 0;
 
-                    // Semi-transparent overlay for header
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                    ctx.fillRect(0, 0, canvasWidth, headerHeight);
-
-                    // Title with modern styling
+                    // Header text - LARGE and bold
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 52px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(boardTitle, canvasWidth / 2, 70);
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                    ctx.shadowBlur = 20;
+                    ctx.fillText(boardTitle, canvasWidth / 2, 100);
 
-                    // Subtitle
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.font = '24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                    ctx.fillText(`${imageCount} aesthetic photos`, canvasWidth / 2, 110);
+                    // Stats - prominent and clear
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.fillText(`${trackCount} tracks • ${imagesToUse.length} moments`, canvasWidth / 2, 160);
 
-                    // Pinterest-style masonry layout with 3 columns
+                    // Clean grid layout (3x4) instead of masonry
+                    const cols = 3;
+                    const rows = 4;
                     const contentHeight = canvasHeight - headerHeight - footerHeight;
-                    const colWidth = (canvasWidth - (4 * gap)) / 3;
-                    const columnHeights = [0, 0, 0]; // Track height of each column
+                    const imgWidth = (canvasWidth - (gap * (cols + 1))) / cols;
+                    const imgHeight = (contentHeight - (gap * (rows + 1))) / rows;
 
-                    // Helper function to draw rounded rectangle
-                    const drawRoundedImage = (img, x, y, width, height) => {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.moveTo(x + borderRadius, y);
-                        ctx.lineTo(x + width - borderRadius, y);
-                        ctx.quadraticCurveTo(x + width, y, x + width, y + borderRadius);
-                        ctx.lineTo(x + width, y + height - borderRadius);
-                        ctx.quadraticCurveTo(x + width, y + height, x + width - borderRadius, y + height);
-                        ctx.lineTo(x + borderRadius, y + height);
-                        ctx.quadraticCurveTo(x, y + height, x, y + height - borderRadius);
-                        ctx.lineTo(x, y + borderRadius);
-                        ctx.quadraticCurveTo(x, y, x + borderRadius, y);
-                        ctx.closePath();
-                        ctx.clip();
-
-                        // Draw image to fill the rounded rect
-                        const scale = Math.max(width / img.width, height / img.height);
-                        const scaledWidth = img.width * scale;
-                        const scaledHeight = img.height * scale;
-                        const offsetX = x + (width - scaledWidth) / 2;
-                        const offsetY = y + (height - scaledHeight) / 2;
-
-                        ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
-                        ctx.restore();
-                    };
-
-                    // Load and draw images in masonry layout
+                    // Load and draw images in clean grid
                     const imagePromises = imagesToUse.map((imgData, index) => {
                         return new Promise((resolve) => {
                             const img = new Image();
                             img.crossOrigin = 'anonymous';
 
                             img.onload = () => {
-                                // Find shortest column
-                                const shortestCol = columnHeights.indexOf(Math.min(...columnHeights));
+                                const col = index % cols;
+                                const row = Math.floor(index / cols);
 
-                                // Vary image heights for visual interest (tall, medium, square)
-                                const heightVariants = [colWidth * 1.4, colWidth, colWidth * 0.7];
-                                const imageHeight = heightVariants[index % 3];
+                                const x = gap + (col * (imgWidth + gap));
+                                const y = headerHeight + gap + (row * (imgHeight + gap));
 
-                                const x = gap + (shortestCol * (colWidth + gap));
-                                const y = headerHeight + gap + columnHeights[shortestCol];
+                                // Draw image with cover fit
+                                ctx.save();
 
-                                // Only draw if it fits in the content area
-                                if (y + imageHeight <= canvasHeight - footerHeight - gap) {
-                                    drawRoundedImage(img, x, y, colWidth, imageHeight);
-                                    columnHeights[shortestCol] += imageHeight + gap;
+                                // Rounded corners
+                                const radius = 8;
+                                ctx.beginPath();
+                                ctx.moveTo(x + radius, y);
+                                ctx.lineTo(x + imgWidth - radius, y);
+                                ctx.quadraticCurveTo(x + imgWidth, y, x + imgWidth, y + radius);
+                                ctx.lineTo(x + imgWidth, y + imgHeight - radius);
+                                ctx.quadraticCurveTo(x + imgWidth, y + imgHeight, x + imgWidth - radius, y + imgHeight);
+                                ctx.lineTo(x + radius, y + imgHeight);
+                                ctx.quadraticCurveTo(x, y + imgHeight, x, y + imgHeight - radius);
+                                ctx.lineTo(x, y + radius);
+                                ctx.quadraticCurveTo(x, y, x + radius, y);
+                                ctx.closePath();
+                                ctx.clip();
+
+                                const scale = Math.max(imgWidth / img.width, imgHeight / img.height);
+                                const scaledWidth = img.width * scale;
+                                const scaledHeight = img.height * scale;
+                                const offsetX = x + (imgWidth - scaledWidth) / 2;
+                                const offsetY = y + (imgHeight - scaledHeight) / 2;
+
+                                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+
+                                // Add artist name overlay for Spotify images
+                                if (imgData.source === 'spotify' && imgData.artist) {
+                                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                                    ctx.fillRect(x, y + imgHeight - 40, imgWidth, 40);
+
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.font = 'bold 16px -apple-system';
+                                    ctx.textAlign = 'left';
+                                    ctx.fillText(imgData.artist, x + 10, y + imgHeight - 15);
                                 }
+
+                                ctx.restore();
                                 resolve();
                             };
 
@@ -4111,25 +4133,32 @@
 
                     await Promise.all(imagePromises);
 
-                    // Footer - Modern and branded
+                    // Footer - Clean and branded like Spotify
                     const footerY = canvasHeight - footerHeight;
 
-                    // Semi-transparent overlay for footer
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    // Dark overlay
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
                     ctx.fillRect(0, footerY, canvasWidth, footerHeight);
 
-                    // App branding - more stylish
+                    // App name - BIG and bold
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    ctx.font = 'bold 56px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 60);
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                    ctx.shadowBlur = 15;
+                    ctx.fillText('MelodySearch', canvasWidth / 2, footerY + 70);
 
-                    // Stats
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = '22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                    const date = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                    const statsText = `${this.moodData.track_count || 'Custom'} tracks • ${date}`;
-                    ctx.fillText(statsText, canvasWidth / 2, footerY + 95);
+                    // Date and tagline
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                    const date = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    ctx.fillText(date, canvasWidth / 2, footerY + 120);
+
+                    // URL
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.font = '22px -apple-system';
+                    ctx.fillText('melodysearch.onrender.com', canvasWidth / 2, footerY + 155);
 
                     // Convert canvas to blob
                     return new Promise((resolve) => {
@@ -4736,12 +4765,15 @@
                     const header = document.querySelector('.mood-board-header');
 
                     if (!scrollContainer || !header) {
-                        console.log('[Auto-hide] Missing elements:', { scrollContainer: !!scrollContainer, header: !!header });
+                        console.error('[Auto-hide] Missing elements:', {
+                            scrollContainer: !!scrollContainer,
+                            header: !!header
+                        });
                         return;
                     }
 
                     let lastScrollTop = 0;
-                    const scrollThreshold = 50; // Minimum scroll distance to trigger hide/show
+                    const scrollThreshold = 100; // Scroll distance before hiding
 
                     // Remove existing listener if any
                     if (this.scrollListener) {
@@ -4750,24 +4782,28 @@
 
                     this.scrollListener = () => {
                         const scrollTop = scrollContainer.scrollTop;
-                        const scrollDiff = scrollTop - lastScrollTop;
 
-                        // Scrolling down & past threshold
-                        if (scrollDiff > 5 && scrollTop > scrollThreshold) {
-                            header.classList.add('hidden');
-                            console.log('[Auto-hide] Header hidden at scrollTop:', scrollTop);
+                        // Scrolling down - hide header
+                        if (scrollTop > scrollThreshold && scrollTop > lastScrollTop) {
+                            if (!header.classList.contains('hidden')) {
+                                header.classList.add('hidden');
+                                console.log('[Auto-hide] ⬇️ Header hidden at', scrollTop);
+                            }
                         }
-                        // Scrolling up
-                        else if (scrollDiff < -5) {
-                            header.classList.remove('hidden');
-                            console.log('[Auto-hide] Header shown at scrollTop:', scrollTop);
+                        // Scrolling up - show header
+                        else if (scrollTop < lastScrollTop) {
+                            if (header.classList.contains('hidden')) {
+                                header.classList.remove('hidden');
+                                console.log('[Auto-hide] ⬆️ Header shown at', scrollTop);
+                            }
                         }
 
-                        lastScrollTop = scrollTop;
+                        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
                     };
 
                     scrollContainer.addEventListener('scroll', this.scrollListener, { passive: true });
-                    console.log('[Auto-hide] Scroll listener attached');
+                    console.log('[Auto-hide] ✅ Scroll listener attached to', scrollContainer);
+                    console.log('[Auto-hide] Header element:', header);
                 }
 
                 toggleSearch() {

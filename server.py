@@ -2531,6 +2531,12 @@ def identify_song():
         )
 
 
+@app.route('/privacy', methods=['GET'])
+def privacy_policy():
+    """Privacy policy page for API compliance (Pinterest, etc.)"""
+    return render_template('privacy.html')
+
+
 @app.route('/now-playing', methods=['GET'])
 def get_now_playing():
     """Get the user's currently playing track"""
@@ -2675,7 +2681,8 @@ def get_mood_board():
         spotify_fallback_images = []
 
         try:
-            recently_played = sp.current_user_recently_played(limit=20)
+            # Fetch more tracks for greater variety (50 instead of 20)
+            recently_played = sp.current_user_recently_played(limit=50)
             for item in recently_played.get('items', []):
                 track = item['track']
 
@@ -2729,9 +2736,10 @@ def get_mood_board():
                 logging.warning(f"Could not fetch artist data: {e}")
 
         # Prepare Spotify images (PRIMARY SOURCE - artist photos and album covers)
-        # Expand to get more Spotify images
-        for idx, track in enumerate(all_tracks[:30]):  # Increased from 15 to 30
-            if idx % 3 == 0 and track['artist_id'] in artist_images:
+        # Use ALL tracks for maximum variety (was 30, now using all 50)
+        for idx, track in enumerate(all_tracks[:50]):
+            # Add artist photo every 4 tracks (not every 3) for more variety
+            if idx % 4 == 0 and track['artist_id'] in artist_images:
                 # Artist photo
                 spotify_fallback_images.append({
                     'url': artist_images[track['artist_id']],
@@ -2752,25 +2760,25 @@ def get_mood_board():
                     'source': 'spotify'
                 })
 
-        # MIX Spotify (80%) + Unsplash (20%) for best of both worlds
-        # Spotify = Actual artist photos and album covers (what user wants)
-        # Unsplash = A few aesthetic photos for variety
+        # MIX Spotify (90%) + Unsplash (10%) - HEAVY Spotify bias
+        # Spotify = ACTUAL music content (artist photos, album covers)
+        # Unsplash = Just a tiny bit of aesthetic variety until Pinterest API is ready
         images = []
         image_source = 'spotify+unsplash'
 
         try:
             image_service = get_image_service()
-            # Fetch fewer Unsplash images (only 20% of total)
-            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=25)
+            # Fetch very few Unsplash images (only 10% of total)
+            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=12)
 
-            # Mix: 80 Spotify images + 20 Unsplash images = 100 total
+            # Mix: 90 Spotify images + 10 Unsplash images = 100 total
             import random
 
-            # Take up to 80 Spotify images (or all if less)
-            spotify_portion = spotify_fallback_images[:80]
+            # Take up to 90 Spotify images (or all if less)
+            spotify_portion = spotify_fallback_images[:90]
 
-            # Take up to 20 Unsplash images (or all if less)
-            unsplash_portion = unsplash_images[:20] if unsplash_images else []
+            # Take up to 10 Unsplash images (or all if less)
+            unsplash_portion = unsplash_images[:10] if unsplash_images else []
 
             # Combine and shuffle for variety
             images = spotify_portion + unsplash_portion
