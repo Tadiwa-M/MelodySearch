@@ -3941,39 +3941,119 @@
                     }
 
                     try {
+                        this.showNotification('✨ Generating mood board image...');
                         const boardTitle = document.getElementById('moodBoardTitle').textContent || 'My Mood Board';
-                        const imageCount = this.moodData.images.length;
 
-                        // Create shareable link
-                        const shareUrl = `${window.location.origin}/?mood-board=${encodeURIComponent(boardTitle)}`;
-                        const shareText = `Check out my ${boardTitle} mood board with ${imageCount} aesthetic images! 🎨✨`;
+                        // Generate collage image (first 12 photos in 3x4 grid)
+                        const imageBlob = await this.generateMoodBoardImage();
 
-                        // Check if Web Share API is available (mainly on mobile)
-                        if (navigator.share) {
+                        if (!imageBlob) {
+                            this.showNotification('❌ Failed to generate image');
+                            return;
+                        }
+
+                        // Try to share with Web Share API (mobile)
+                        if (navigator.canShare && navigator.canShare({ files: [new File([imageBlob], 'mood-board.png', { type: 'image/png' })] })) {
                             try {
+                                const file = new File([imageBlob], 'mood-board.png', { type: 'image/png' });
                                 await navigator.share({
+                                    files: [file],
                                     title: boardTitle,
-                                    text: shareText,
-                                    url: shareUrl
+                                    text: `Check out my ${boardTitle}! 🎨✨`
                                 });
                                 this.showNotification('✓ Shared successfully!');
-                                console.log('[Share] Shared via Web Share API');
+                                console.log('[Share] Shared image via Web Share API');
                             } catch (shareError) {
-                                // User cancelled or share failed
                                 if (shareError.name !== 'AbortError') {
                                     console.error('[Share] Web Share API error:', shareError);
-                                    // Fallback to copy link
-                                    this.copyShareLink(shareUrl, shareText);
+                                    this.downloadMoodBoardImage(imageBlob, boardTitle);
                                 }
                             }
                         } else {
-                            // Fallback: Show share options menu
-                            this.showShareMenu(shareUrl, shareText, boardTitle);
+                            // Fallback: Download image
+                            this.downloadMoodBoardImage(imageBlob, boardTitle);
                         }
                     } catch (error) {
                         console.error('[Share] Error:', error);
                         this.showNotification('❌ Failed to share. Check console for details.');
                     }
+                }
+
+                async generateMoodBoardImage() {
+                    // Create a 3x4 grid collage of first 12 images
+                    const imagesToUse = this.moodData.images.slice(0, 12);
+                    const cols = 3;
+                    const rows = 4;
+                    const imageSize = 400; // Each image will be 400x400px
+                    const canvasWidth = cols * imageSize;
+                    const canvasHeight = rows * imageSize;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const ctx = canvas.getContext('2d');
+
+                    // Background
+                    ctx.fillStyle = '#121212';
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    // Load and draw images
+                    const imagePromises = imagesToUse.map((imgData, index) => {
+                        return new Promise((resolve) => {
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+
+                            img.onload = () => {
+                                const col = index % cols;
+                                const row = Math.floor(index / cols);
+                                const x = col * imageSize;
+                                const y = row * imageSize;
+
+                                // Draw image (cover fit)
+                                const scale = Math.max(imageSize / img.width, imageSize / img.height);
+                                const scaledWidth = img.width * scale;
+                                const scaledHeight = img.height * scale;
+                                const offsetX = x + (imageSize - scaledWidth) / 2;
+                                const offsetY = y + (imageSize - scaledHeight) / 2;
+
+                                ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                                resolve();
+                            };
+
+                            img.onerror = () => {
+                                // Draw placeholder for failed images
+                                ctx.fillStyle = '#282828';
+                                const col = index % cols;
+                                const row = Math.floor(index / cols);
+                                ctx.fillRect(col * imageSize, row * imageSize, imageSize, imageSize);
+                                resolve();
+                            };
+
+                            img.src = imgData.thumb_url || imgData.url;
+                        });
+                    });
+
+                    await Promise.all(imagePromises);
+
+                    // Convert canvas to blob
+                    return new Promise((resolve) => {
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                        }, 'image/png', 0.95);
+                    });
+                }
+
+                downloadMoodBoardImage(blob, title) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-mood-board.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    this.showNotification('✓ Mood board image downloaded!');
+                    console.log('[Share] Downloaded image');
                 }
 
                 async copyShareLink(url, text) {
