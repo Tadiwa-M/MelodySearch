@@ -1259,45 +1259,37 @@
         }
 
         .mood-board-header {
-            position: fixed;  /* Changed from sticky to fixed for better hide/show control */
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
             z-index: 1000;
             background: rgba(18, 18, 18, 0.95);
             backdrop-filter: blur(20px);
-            padding: 0.75rem 1rem;
+            padding: 0.35rem 0.75rem; /* MUCH smaller padding */
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateY(0);
-            opacity: 1;
+            gap: 0.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
         }
 
-        .mood-board-header.hidden {
-            transform: translateY(-100%);
-        }
-
         /* Add padding to mood board content so fixed header doesn't cover it */
         .mood-board-scroll {
-            padding-top: 70px;
+            padding-top: 45px; /* Smaller header = less padding needed */
         }
 
         .mood-board-title h2 {
             margin: 0;
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #ffffff;
+            font-size: 0.85rem; /* MUCH smaller text */
+            font-weight: 600;
         }
 
         .mood-board-title p {
             margin: 0;
-            font-size: 0.75rem;
-            color: #888;
+            font-size: 0.65rem; /* Tiny stats text */
+            color: #b3b3b3;
         }
 
         .back-btn, .refresh-btn, .icon-btn {
@@ -1305,7 +1297,7 @@
             border: none;
             color: #ffffff;
             cursor: pointer;
-            padding: 0.5rem;
+            padding: 0.3rem; /* Smaller buttons to match compact header */
             border-radius: 50%;
             transition: all 0.2s ease;
             display: flex;
@@ -1323,18 +1315,13 @@
         }
 
         .icon-btn svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .mood-board-scroll {
-            padding: 1rem;
-            min-height: calc(100vh - 80px);
+            width: 16px; /* Smaller icons for compact header */
+            height: 16px;
         }
 
         .mood-board-search {
             position: sticky;
-            top: 63px;
+            top: 48px; /* Adjusted for compact header */
             z-index: 999;
             background: rgba(18, 18, 18, 0.98);
             backdrop-filter: blur(20px);
