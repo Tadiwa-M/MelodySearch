@@ -1644,16 +1644,16 @@
         .top-tracks-container {
             background: #121212;
             min-height: 100vh;
-            padding: 2rem;
+            padding: 1rem; /* Reduced from 2rem for more compact layout */
         }
 
         /* Premium Header with 2x2 Grid Cover */
         .top-tracks-header {
             display: flex;
-            gap: 2rem;
+            gap: 1.5rem;
             align-items: flex-end;
-            margin-bottom: 3rem;
-            padding: 2rem;
+            margin-bottom: 2rem; /* Reduced from 3rem */
+            padding: 1.25rem; /* Reduced from 2rem */
             background: linear-gradient(180deg, rgba(29, 185, 84, 0.15) 0%, rgba(18, 18, 18, 0) 100%);
             border-radius: 8px;
         }
@@ -2036,7 +2036,7 @@
             <button class="nav-tab" data-tab="now-playing" role="tab" aria-selected="false" aria-controls="nowPlayingPanel">Now Playing</button>
             <button class="nav-tab" data-tab="recently-played" role="tab" aria-selected="false" aria-controls="recentlyPlayedPanel">Recently Played</button>
             <button class="nav-tab" data-tab="mood-board" role="tab" aria-selected="false" aria-controls="moodBoardPanel">Mood Board</button>
-            <button class="nav-tab" data-tab="top-tracks" role="tab" aria-selected="false" aria-controls="topTracksPanel">🔥 Top Tracks</button>
+            <button class="nav-tab" data-tab="top-tracks" role="tab" aria-selected="false" aria-controls="topTracksPanel">Songs You'd Like</button>
         </div>
 
         <!-- Search Tab Content -->
