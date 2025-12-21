@@ -2753,7 +2753,7 @@ def get_mood_board():
 
         try:
             image_service = get_image_service()
-            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=15)
+            unsplash_images = image_service.fetch_mood_board_images(all_tracks, total_images=50)
 
             if unsplash_images:
                 images = unsplash_images
@@ -2793,7 +2793,7 @@ def custom_mood_board_search():
     try:
         data = request.get_json()
         query = data.get('query', '').strip()
-        count = min(int(data.get('count', 15)), 30)  # Max 30 images
+        count = min(int(data.get('count', 50)), 50)  # Max 50 images
         sources = data.get('sources')  # Optional: ['unsplash', 'pexels', 'pixabay']
 
         if not query:

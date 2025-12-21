@@ -1254,6 +1254,8 @@
         .mood-board-fullscreen {
             position: relative;
             min-height: 100vh;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            width: 100%;
         }
 
         .mood-board-header {
@@ -1267,6 +1269,15 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .mood-board-header.hidden {
+            transform: translateY(-100%);
+            opacity: 0;
+            pointer-events: none;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
         }
@@ -1382,6 +1393,9 @@
             column-count: 4;
             column-gap: 1rem;
             padding: 0;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .masonry-item {
@@ -3751,8 +3765,8 @@
                 displayMoodBoard() {
                     const { images, tracks, track_count, generated_at, message, source } = this.moodData;
 
-                    // Check if no listening history
-                    if (track_count === 0 || images.length === 0) {
+                    // Check if no images (regardless of track count)
+                    if (!images || images.length === 0) {
                         document.getElementById('moodBoardGrid').innerHTML = `
                             <div style="background: linear-gradient(135deg, #1db954 0%, #1ed760 100%); border-radius: 12px; padding: 3rem; color: white; text-align: center;">
                                 <div style="font-size: 4rem; margin-bottom: 1rem;">🎵</div>
@@ -3767,8 +3781,18 @@
 
                     // Display aesthetic image grid with Pinterest masonry layout
                     const gridContainer = document.getElementById('moodBoardGrid');
-                    const sourceLabel = source === 'unsplash' ? '✨ Powered by Unsplash' : '🎵 From Spotify';
-                    document.getElementById('moodBoardStats').textContent = `Based on your recent ${track_count} tracks • ${sourceLabel}`;
+                    const sourceLabel = source === 'unsplash' ? '✨ Powered by Unsplash' :
+                                       source === 'pexels' ? '✨ Powered by Pexels' :
+                                       source === 'pixabay' ? '✨ Powered by Pixabay' :
+                                       source === 'saved' ? '📌 Saved Board' :
+                                       source && source.includes(',') ? `✨ ${source}` :
+                                       '🎵 From Spotify';
+
+                    const statsText = track_count > 0
+                        ? `Based on your recent ${track_count} tracks • ${sourceLabel}`
+                        : `${images.length} images • ${sourceLabel}`;
+
+                    document.getElementById('moodBoardStats').textContent = statsText;
 
                     gridContainer.innerHTML = `
                         <div class="masonry-grid">
@@ -4513,13 +4537,50 @@
 
                     // Setup infinite scroll
                     this.setupInfiniteScroll();
+
+                    // Setup auto-hide header
+                    this.setupAutoHideHeader();
                 }
 
                 exitFullscreen() {
                     // Exit full-screen mode on mobile
                     document.body.classList.remove('mood-board-active');
-                    // Optionally switch to a different tab or stay on mood board
-                    // For now, just exit full-screen mode
+
+                    // Remove scroll listener
+                    if (this.scrollListener) {
+                        const scrollContainer = document.getElementById('moodBoardGrid');
+                        if (scrollContainer) {
+                            scrollContainer.removeEventListener('scroll', this.scrollListener);
+                        }
+                    }
+                }
+
+                setupAutoHideHeader() {
+                    const scrollContainer = document.getElementById('moodBoardGrid');
+                    const header = document.querySelector('.mood-board-header');
+
+                    if (!scrollContainer || !header) return;
+
+                    let lastScrollTop = 0;
+                    const scrollThreshold = 50; // Minimum scroll distance to trigger hide/show
+
+                    this.scrollListener = () => {
+                        const scrollTop = scrollContainer.scrollTop;
+                        const scrollDiff = scrollTop - lastScrollTop;
+
+                        // Scrolling down & past threshold
+                        if (scrollDiff > 5 && scrollTop > scrollThreshold) {
+                            header.classList.add('hidden');
+                        }
+                        // Scrolling up
+                        else if (scrollDiff < -5) {
+                            header.classList.remove('hidden');
+                        }
+
+                        lastScrollTop = scrollTop;
+                    };
+
+                    scrollContainer.addEventListener('scroll', this.scrollListener);
                 }
 
                 toggleSearch() {
@@ -4553,7 +4614,7 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 query: query,
-                                count: 30,
+                                count: 50,
                                 sources: ['unsplash', 'pexels', 'pixabay']
                             })
                         });
