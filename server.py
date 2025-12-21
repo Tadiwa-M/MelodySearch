@@ -2906,32 +2906,31 @@ def get_top_tracks_playlist():
             limit=100  # Get many recommendations to filter from
         )
 
-        # STEP 4: Filter recommendations to only songs user has actually played
-        # Then rank by play count
-        filtered_recommendations = []
+        # STEP 4: Process all recommendations (not just played ones!)
+        # Include play count if available, but show ALL recommendations
+        all_recommendations = []
         for rec_track in recommendations.get('tracks', []):
             track_id = rec_track['id']
 
-            # Only include if user has played it recently
-            if track_id in recently_played_ids:
-                filtered_recommendations.append({
-                    'id': track_id,
-                    'name': rec_track['name'],
-                    'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
-                    'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
-                    'album': rec_track['album']['name'],
-                    'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
-                    'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
-                    'play_count': play_count_map.get(track_id, 0),
-                    'preview_url': rec_track.get('preview_url'),
-                    'uri': rec_track['uri']
-                })
+            # Include ALL recommendations, with play count if available
+            all_recommendations.append({
+                'id': track_id,
+                'name': rec_track['name'],
+                'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
+                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
+                'album': rec_track['album']['name'],
+                'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
+                'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
+                'play_count': play_count_map.get(track_id, 0),  # 0 if not played yet
+                'preview_url': rec_track.get('preview_url'),
+                'uri': rec_track['uri']
+            })
 
-        # Sort by play count (most played first)
-        filtered_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
+        # Sort by play count (songs you've played show first, then new recommendations)
+        all_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
 
         # Take top 20 tracks for the playlist
-        playlist_tracks = filtered_recommendations[:20]
+        playlist_tracks = all_recommendations[:20]
 
         # STEP 5: Generate 2x2 album grid cover (like Spotify)
         # Use top 4 tracks' album covers
