@@ -1259,8 +1259,10 @@
         }
 
         .mood-board-header {
-            position: sticky;
+            position: fixed;  /* Changed from sticky to fixed for better hide/show control */
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 1000;
             background: rgba(18, 18, 18, 0.95);
             backdrop-filter: blur(20px);
@@ -1269,17 +1271,20 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            transition: transform 0.3s ease, opacity 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateY(0);
             opacity: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
         }
 
         .mood-board-header.hidden {
             transform: translateY(-100%);
-            opacity: 0;
-            pointer-events: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Add padding to mood board content so fixed header doesn't cover it */
+        .mood-board-scroll {
+            padding-top: 70px;
         }
 
         .mood-board-title h2 {
@@ -4736,12 +4741,15 @@
                     const header = document.querySelector('.mood-board-header');
 
                     if (!scrollContainer || !header) {
-                        console.log('[Auto-hide] Missing elements:', { scrollContainer: !!scrollContainer, header: !!header });
+                        console.error('[Auto-hide] Missing elements:', {
+                            scrollContainer: !!scrollContainer,
+                            header: !!header
+                        });
                         return;
                     }
 
                     let lastScrollTop = 0;
-                    const scrollThreshold = 50; // Minimum scroll distance to trigger hide/show
+                    const scrollThreshold = 100; // Scroll distance before hiding
 
                     // Remove existing listener if any
                     if (this.scrollListener) {
@@ -4750,24 +4758,28 @@
 
                     this.scrollListener = () => {
                         const scrollTop = scrollContainer.scrollTop;
-                        const scrollDiff = scrollTop - lastScrollTop;
 
-                        // Scrolling down & past threshold
-                        if (scrollDiff > 5 && scrollTop > scrollThreshold) {
-                            header.classList.add('hidden');
-                            console.log('[Auto-hide] Header hidden at scrollTop:', scrollTop);
+                        // Scrolling down - hide header
+                        if (scrollTop > scrollThreshold && scrollTop > lastScrollTop) {
+                            if (!header.classList.contains('hidden')) {
+                                header.classList.add('hidden');
+                                console.log('[Auto-hide] ⬇️ Header hidden at', scrollTop);
+                            }
                         }
-                        // Scrolling up
-                        else if (scrollDiff < -5) {
-                            header.classList.remove('hidden');
-                            console.log('[Auto-hide] Header shown at scrollTop:', scrollTop);
+                        // Scrolling up - show header
+                        else if (scrollTop < lastScrollTop) {
+                            if (header.classList.contains('hidden')) {
+                                header.classList.remove('hidden');
+                                console.log('[Auto-hide] ⬆️ Header shown at', scrollTop);
+                            }
                         }
 
-                        lastScrollTop = scrollTop;
+                        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
                     };
 
                     scrollContainer.addEventListener('scroll', this.scrollListener, { passive: true });
-                    console.log('[Auto-hide] Scroll listener attached');
+                    console.log('[Auto-hide] ✅ Scroll listener attached to', scrollContainer);
+                    console.log('[Auto-hide] Header element:', header);
                 }
 
                 toggleSearch() {

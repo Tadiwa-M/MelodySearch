@@ -2531,6 +2531,12 @@ def identify_song():
         )
 
 
+@app.route('/privacy', methods=['GET'])
+def privacy_policy():
+    """Privacy policy page for API compliance (Pinterest, etc.)"""
+    return render_template('privacy.html')
+
+
 @app.route('/now-playing', methods=['GET'])
 def get_now_playing():
     """Get the user's currently playing track"""
