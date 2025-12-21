@@ -2925,34 +2925,79 @@ def get_top_tracks_playlist():
             recently_played_ids.add(track_id)
             play_count_map[track_id] = play_count_map.get(track_id, 0) + 1
 
-        # STEP 3: Get recommendations based on top tracks
-        recommendations = sp.recommendations(
-            seed_tracks=top_track_ids[:5],  # Max 5 seeds
-            limit=100  # Get many recommendations to filter from
-        )
-
-        # STEP 4: Process all recommendations (not just played ones!)
-        # Include play count if available, but show ALL recommendations
+        # STEP 3: Get recommendations using the SAME algorithm as search
+        # This is WAY more reliable than sp.recommendations()!
         all_recommendations = []
-        for rec_track in recommendations.get('tracks', []):
-            track_id = rec_track['id']
+        seen_track_ids = set()
 
-            # Include ALL recommendations, with play count if available
-            all_recommendations.append({
-                'id': track_id,
-                'name': rec_track['name'],
-                'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
-                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
-                'album': rec_track['album']['name'],
-                'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
-                'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
-                'play_count': play_count_map.get(track_id, 0),  # 0 if not played yet
-                'preview_url': rec_track.get('preview_url'),
-                'uri': rec_track['uri']
-            })
+        # Add top tracks themselves to seen list
+        for track in top_tracks:
+            seen_track_ids.add(track['id'])
 
-        # Sort by play count (songs you've played show first, then new recommendations)
-        all_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
+        # Initialize similarity engine (same as search endpoint)
+        similarity_engine = MetadataSimilarityEngine(sp)
+
+        # For each seed track, find similar songs
+        for seed_track in top_tracks[:3]:  # Use top 3 as seeds
+            try:
+                # Get metadata for this track
+                metadata_features = similarity_engine.extract_comprehensive_metadata(seed_track['id'])
+
+                # Find similar songs using the same metadata-based search as /search endpoint
+                similar_tracks = find_metadata_based_candidates(
+                    sp,
+                    seed_track,
+                    metadata_features,
+                    limit=15  # 15 per seed = ~45 total candidates
+                )
+
+                # Add to recommendations if not seen
+                for track in similar_tracks:
+                    track_id = track.get('spotify_id')
+                    if track_id and track_id not in seen_track_ids:
+                        seen_track_ids.add(track_id)
+
+                        # Add with play count from recently played
+                        all_recommendations.append({
+                            'id': track_id,
+                            'name': track.get('title', 'Unknown'),
+                            'artist': track.get('artist', 'Unknown'),
+                            'artists': [{'name': track.get('artist', 'Unknown'), 'id': ''}],
+                            'album': track.get('album', 'Unknown'),
+                            'album_art': track.get('album_art'),
+                            'artist_id': '',
+                            'play_count': play_count_map.get(track_id, 0),
+                            'preview_url': track.get('preview_url'),
+                            'uri': f"spotify:track:{track_id}",
+                            'similarity_score': track.get('similarity_score', 0.5)
+                        })
+
+            except Exception as e:
+                logging.warning(f"Failed to find similar songs for {seed_track.get('name')}: {e}")
+                continue
+
+        # Fallback: If still no recommendations, just use recently played
+        if len(all_recommendations) == 0:
+            logging.warning("No recommendations found, using recently played as fallback")
+            for item in recently_played.get('items', [])[:20]:
+                track = item['track']
+                if track['id'] not in seen_track_ids:
+                    all_recommendations.append({
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                        'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
+                        'album': track['album']['name'],
+                        'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
+                        'artist_id': track['artists'][0]['id'] if track['artists'] else None,
+                        'play_count': play_count_map.get(track['id'], 0),
+                        'preview_url': track.get('preview_url'),
+                        'uri': track['uri'],
+                        'similarity_score': 0.0
+                    })
+
+        # Sort by similarity score first, then play count
+        all_recommendations.sort(key=lambda x: (x['similarity_score'], x['play_count']), reverse=True)
 
         # Take top 20 tracks for the playlist
         playlist_tracks = all_recommendations[:20]
