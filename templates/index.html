@@ -1906,7 +1906,14 @@
                         <h2 id="moodBoardTitle">Your Mood Board</h2>
                         <p id="moodBoardStats">Generated from your listening history</p>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span id="selectionCounter" style="display: none; color: #1ed760; font-weight: bold; margin-right: 0.5rem; font-size: 0.9rem;"></span>
+                        <button class="icon-btn" onclick="window.moodBoardManager.toggleSelectionMode()" title="Select Photos" id="selectModeBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"></path>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                            </svg>
+                        </button>
                         <button class="icon-btn" onclick="window.moodBoardManager.toggleSearch()" title="Custom Search" id="searchToggleBtn">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
@@ -3705,6 +3712,8 @@
             class MoodBoardManager {
                 constructor() {
                     this.moodData = null;
+                    this.selectionMode = false;
+                    this.selectedImages = new Set();
                 }
 
                 async loadMoodBoard() {
@@ -3766,15 +3775,27 @@
                                 const heights = ['250px', '320px', '280px', '350px', '300px', '270px'];
                                 const height = heights[index % heights.length];
 
+                                const isSelected = this.selectedImages.has(index);
+
                                 return `
-                                    <div class="masonry-item" style="animation: fadeIn 0.6s ease ${index * 0.08}s both;" data-image-id="${index}">
-                                        <div class="masonry-card" style="height: ${height};">
+                                    <div class="masonry-item ${this.selectionMode ? 'selectable' : ''}"
+                                         style="animation: fadeIn 0.6s ease ${index * 0.08}s both;"
+                                         data-image-id="${index}"
+                                         ${this.selectionMode ? `onclick="window.moodBoardManager.toggleImageSelection(${index})"` : ''}>
+                                        <div class="masonry-card" style="height: ${height}; ${isSelected ? 'border: 3px solid #1ed760;' : ''}">
+                                            ${this.selectionMode ? `
+                                                <input type="checkbox"
+                                                       class="selection-checkbox"
+                                                       ${isSelected ? 'checked' : ''}
+                                                       style="position: absolute; top: 12px; left: 12px; z-index: 10; width: 24px; height: 24px; cursor: pointer;"
+                                                       onclick="event.stopPropagation(); window.moodBoardManager.toggleImageSelection(${index})">
+                                            ` : ''}
                                             <img src="${item.thumb_url || item.url}"
                                                  data-full="${item.url}"
                                                  alt="${item.title || 'Mood board image'}"
                                                  loading="lazy">
 
-                                            <div class="masonry-overlay">
+                                            <div class="masonry-overlay" ${this.selectionMode ? 'style="pointer-events: none;"' : ''}>
                                                 <div class="masonry-actions">
                                                     <button class="pin-btn" onclick="window.moodBoardManager.saveToCollection(${index})" title="Save to collection">
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3802,7 +3823,23 @@
                                 `;
                             }).join('')}
                         </div>
+                        ${this.selectionMode && this.selectedImages.size > 0 ? `
+                            <button onclick="window.moodBoardManager.createCustomBoard()"
+                                    style="position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+                                           background: linear-gradient(135deg, #1db954, #1ed760);
+                                           border: none; border-radius: 50px; padding: 1rem 2rem;
+                                           color: white; font-weight: bold; font-size: 1rem;
+                                           cursor: pointer; box-shadow: 0 4px 12px rgba(29, 185, 84, 0.4);
+                                           transition: transform 0.2s ease;"
+                                    onmouseover="this.style.transform='scale(1.05)'"
+                                    onmouseout="this.style.transform='scale(1)'">
+                                ✨ Create Custom Board (${this.selectedImages.size})
+                            </button>
+                        ` : ''}
                     `;
+
+                    // Update selection counter
+                    this.updateSelectionCounter();
                 }
 
                 saveToCollection(imageIndex) {
@@ -3835,7 +3872,7 @@
 
                 async shareMoodBoard() {
                     if (!this.moodData || !this.moodData.images || this.moodData.images.length === 0) {
-                        alert('Please load your mood board first!');
+                        this.showNotification('⚠️ Please load your mood board first!');
                         return;
                     }
 
@@ -3843,59 +3880,274 @@
                         const boardName = prompt('Name your mood board:', 'My Mood Board');
                         if (!boardName) return;
 
-                        const response = await fetch('/mood-board/save', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                name: boardName,
-                                images: this.moodData.images,
-                                tracks: this.moodData.tracks || []
-                            })
-                        });
+                        // Save to localStorage (works without authentication!)
+                        const board = {
+                            id: Date.now().toString(),
+                            name: boardName,
+                            images: this.moodData.images,
+                            tracks: this.moodData.tracks || [],
+                            created_at: new Date().toISOString(),
+                            image_count: this.moodData.images.length
+                        };
 
-                        const data = await response.json();
-                        if (data.success) {
-                            // Copy share URL to clipboard
-                            if (navigator.clipboard) {
-                                await navigator.clipboard.writeText(data.share_url);
-                                this.showNotification('✓ Share link copied to clipboard!');
-                            } else {
-                                // Fallback for older browsers
-                                prompt('Share this link:', data.share_url);
-                            }
+                        // Get existing boards from localStorage
+                        const savedBoards = JSON.parse(localStorage.getItem('mood_boards') || '[]');
+                        savedBoards.push(board);
+                        localStorage.setItem('mood_boards', JSON.stringify(savedBoards));
+
+                        // Create shareable link (just the board ID)
+                        const shareUrl = `${window.location.origin}/?board=${board.id}`;
+
+                        // Copy share URL to clipboard
+                        if (navigator.clipboard) {
+                            await navigator.clipboard.writeText(shareUrl);
+                            this.showNotification(`✓ "${boardName}" saved & share link copied to clipboard!`);
                         } else {
-                            alert(data.message || 'Failed to save mood board');
+                            // Fallback for older browsers
+                            prompt('Board saved! Share this link:', shareUrl);
                         }
+
+                        console.log('[Share] Board saved to localStorage:', board.id);
                     } catch (error) {
-                        console.error('Error sharing mood board:', error);
-                        alert('Please login to share mood boards');
+                        console.error('[Share] Error saving mood board:', error);
+                        this.showNotification('❌ Failed to save mood board. Check console for details.');
                     }
                 }
 
                 async showSavedBoards() {
                     try {
-                        const response = await fetch('/mood-board/my-boards');
-                        const data = await response.json();
+                        // Get boards from localStorage
+                        const savedBoards = JSON.parse(localStorage.getItem('mood_boards') || '[]');
+                        console.log('[Saved Boards] Loaded from localStorage:', savedBoards.length, 'boards');
 
-                        if (!data.success) {
-                            alert('Please login to view saved boards');
+                        if (savedBoards.length === 0) {
+                            this.showNotification('📌 You haven\'t saved any mood boards yet! Click the share button to save one.');
                             return;
                         }
 
-                        if (data.boards.length === 0) {
-                            alert('You haven\'t saved any mood boards yet! Click share to create one.');
-                            return;
-                        }
-
-                        // Display saved boards in a simple list
-                        const boardList = data.boards.map((board, i) =>
-                            `${i + 1}. ${board.name} (${board.image_count} images) - ${new Date(board.created_at).toLocaleDateString()}`
-                        ).join('\n');
-
-                        alert('Your Saved Boards:\n\n' + boardList + '\n\nNote: Full board viewer coming soon!');
+                        // Create and show saved boards modal
+                        this.displaySavedBoardsModal(savedBoards);
                     } catch (error) {
-                        console.error('Error loading saved boards:', error);
-                        alert('Please login to view saved boards');
+                        console.error('[Saved Boards] Error:', error);
+                        this.showNotification('❌ Failed to load saved boards');
+                    }
+                }
+
+                displaySavedBoardsModal(boards) {
+                    // Create modal HTML
+                    const modalHTML = `
+                        <div class="saved-boards-modal" id="savedBoardsModal" style="
+                            position: fixed;
+                            top: 0; left: 0; right: 0; bottom: 0;
+                            background: rgba(0, 0, 0, 0.9);
+                            z-index: 10000;
+                            overflow-y: auto;
+                            padding: 2rem;
+                        ">
+                            <div style="max-width: 1200px; margin: 0 auto;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                                    <h2 style="color: #1ed760; font-size: 2rem; margin: 0;">📌 Your Saved Boards (${boards.length})</h2>
+                                    <button onclick="document.getElementById('savedBoardsModal').remove()"
+                                            style="background: none; border: none; color: white; font-size: 2rem; cursor: pointer; padding: 0.5rem;">×</button>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                                    ${boards.reverse().map((board, index) => `
+                                        <div class="saved-board-card" style="
+                                            background: #181818;
+                                            border-radius: 12px;
+                                            overflow: hidden;
+                                            border: 1px solid #282828;
+                                            transition: transform 0.2s ease, border-color 0.2s ease;
+                                            cursor: pointer;
+                                        " onmouseover="this.style.borderColor='#1ed760'; this.style.transform='translateY(-4px)'"
+                                           onmouseout="this.style.borderColor='#282828'; this.style.transform='translateY(0)'">
+                                            <div style="
+                                                width: 100%;
+                                                height: 200px;
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                display: grid;
+                                                grid-template-columns: repeat(2, 1fr);
+                                                gap: 2px;
+                                                overflow: hidden;
+                                            ">
+                                                ${board.images.slice(0, 4).map(img => `
+                                                    <img src="${img.thumb_url || img.url}"
+                                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                                         alt="${img.title || 'Mood board image'}">
+                                                `).join('')}
+                                            </div>
+                                            <div style="padding: 1rem;">
+                                                <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.1rem;">${board.name}</h3>
+                                                <p style="margin: 0; color: #b3b3b3; font-size: 0.9rem;">
+                                                    ${board.image_count} images • ${new Date(board.created_at).toLocaleDateString()}
+                                                </p>
+                                                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                                                    <button onclick="event.stopPropagation(); window.moodBoardManager.loadSavedBoard('${board.id}')"
+                                                            style="flex: 1; background: #1ed760; border: none; border-radius: 24px;
+                                                                   padding: 0.5rem 1rem; color: #121212; font-weight: bold; cursor: pointer;">
+                                                        View
+                                                    </button>
+                                                    <button onclick="event.stopPropagation(); window.moodBoardManager.deleteSavedBoard('${board.id}')"
+                                                            style="background: rgba(255, 255, 255, 0.1); border: none; border-radius: 24px;
+                                                                   padding: 0.5rem 1rem; color: #ff4444; font-weight: bold; cursor: pointer;">
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add modal to page
+                    document.body.insertAdjacentHTML('beforeend', modalHTML);
+                }
+
+                loadSavedBoard(boardId) {
+                    try {
+                        const savedBoards = JSON.parse(localStorage.getItem('mood_boards') || '[]');
+                        const board = savedBoards.find(b => b.id === boardId);
+
+                        if (!board) {
+                            this.showNotification('❌ Board not found');
+                            return;
+                        }
+
+                        // Load the board
+                        this.moodData = {
+                            images: board.images,
+                            tracks: board.tracks || [],
+                            track_count: board.tracks?.length || 0,
+                            source: 'saved'
+                        };
+
+                        document.getElementById('moodBoardTitle').textContent = board.name;
+                        this.displayMoodBoard();
+
+                        // Close modal
+                        const modal = document.getElementById('savedBoardsModal');
+                        if (modal) modal.remove();
+
+                        this.showNotification(`✓ Loaded "${board.name}"`);
+                        console.log('[Saved Boards] Loaded board:', board.id);
+                    } catch (error) {
+                        console.error('[Saved Boards] Error loading board:', error);
+                        this.showNotification('❌ Failed to load board');
+                    }
+                }
+
+                deleteSavedBoard(boardId) {
+                    if (!confirm('Are you sure you want to delete this mood board?')) {
+                        return;
+                    }
+
+                    try {
+                        let savedBoards = JSON.parse(localStorage.getItem('mood_boards') || '[]');
+                        const boardName = savedBoards.find(b => b.id === boardId)?.name || 'Board';
+                        savedBoards = savedBoards.filter(b => b.id !== boardId);
+                        localStorage.setItem('mood_boards', JSON.stringify(savedBoards));
+
+                        // Refresh the modal
+                        const modal = document.getElementById('savedBoardsModal');
+                        if (modal) modal.remove();
+
+                        if (savedBoards.length > 0) {
+                            this.displaySavedBoardsModal(savedBoards);
+                        }
+
+                        this.showNotification(`✓ Deleted "${boardName}"`);
+                        console.log('[Saved Boards] Deleted board:', boardId);
+                    } catch (error) {
+                        console.error('[Saved Boards] Error deleting board:', error);
+                        this.showNotification('❌ Failed to delete board');
+                    }
+                }
+
+                toggleSelectionMode() {
+                    this.selectionMode = !this.selectionMode;
+                    this.selectedImages.clear();
+
+                    if (this.selectionMode) {
+                        this.showNotification('✓ Selection mode enabled! Click images to select.');
+                        // Add selection UI
+                        this.displayMoodBoard(); // Re-render with checkboxes
+                    } else {
+                        this.showNotification('Selection mode disabled');
+                        this.displayMoodBoard(); // Re-render without checkboxes
+                    }
+
+                    console.log('[Selection] Mode:', this.selectionMode);
+                }
+
+                toggleImageSelection(index) {
+                    if (!this.selectionMode) return;
+
+                    if (this.selectedImages.has(index)) {
+                        this.selectedImages.delete(index);
+                    } else {
+                        this.selectedImages.add(index);
+                    }
+
+                    // Update checkbox state
+                    const checkbox = document.querySelector(`[data-image-id="${index}"] .selection-checkbox`);
+                    if (checkbox) {
+                        checkbox.checked = this.selectedImages.has(index);
+                    }
+
+                    // Update selection counter
+                    this.updateSelectionCounter();
+                    console.log('[Selection] Selected images:', this.selectedImages.size);
+                }
+
+                updateSelectionCounter() {
+                    const counter = document.getElementById('selectionCounter');
+                    if (counter) {
+                        counter.textContent = `${this.selectedImages.size} selected`;
+                        counter.style.display = this.selectedImages.size > 0 ? 'block' : 'none';
+                    }
+                }
+
+                async createCustomBoard() {
+                    if (this.selectedImages.size === 0) {
+                        this.showNotification('⚠️ Please select at least one image');
+                        return;
+                    }
+
+                    const boardName = prompt(`Create custom board with ${this.selectedImages.size} images.\n\nEnter board name:`, 'My Custom Board');
+                    if (!boardName) return;
+
+                    try {
+                        // Get selected images
+                        const selectedImageData = Array.from(this.selectedImages).map(index => this.moodData.images[index]);
+
+                        // Save to localStorage
+                        const board = {
+                            id: Date.now().toString(),
+                            name: boardName,
+                            images: selectedImageData,
+                            tracks: [],
+                            created_at: new Date().toISOString(),
+                            image_count: selectedImageData.length,
+                            custom: true
+                        };
+
+                        const savedBoards = JSON.parse(localStorage.getItem('mood_boards') || '[]');
+                        savedBoards.push(board);
+                        localStorage.setItem('mood_boards', JSON.stringify(savedBoards));
+
+                        this.showNotification(`✓ Custom board "${boardName}" created with ${this.selectedImages.size} images!`);
+
+                        // Exit selection mode
+                        this.selectionMode = false;
+                        this.selectedImages.clear();
+                        this.displayMoodBoard();
+
+                        console.log('[Custom Board] Created:', board.id);
+                    } catch (error) {
+                        console.error('[Custom Board] Error:', error);
+                        this.showNotification('❌ Failed to create custom board');
                     }
                 }
 
@@ -4047,13 +4299,17 @@
 
                 async customSearch() {
                     const query = document.getElementById('customSearchInput').value.trim();
+                    console.log('[Custom Search] Starting search for:', query);
+
                     if (!query) {
-                        alert('Please enter a search term');
+                        this.showNotification('⚠️ Please enter a search term');
                         return;
                     }
 
                     try {
                         document.getElementById('moodBoardStats').textContent = 'Searching...';
+                        console.log('[Custom Search] Fetching from backend...');
+
                         const response = await fetch('/mood-board/custom-search', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -4064,8 +4320,11 @@
                             })
                         });
 
+                        console.log('[Custom Search] Response status:', response.status);
                         const data = await response.json();
-                        if (data.success) {
+                        console.log('[Custom Search] Response data:', data);
+
+                        if (data.success && data.images && data.images.length > 0) {
                             // Update mood data with custom search results
                             this.moodData = {
                                 images: data.images,
@@ -4081,12 +4340,17 @@
 
                             // Show notification
                             this.showNotification(`✨ Found ${data.images.length} images for "${query}"`);
+                            console.log('[Custom Search] Success! Displayed', data.images.length, 'images');
+                        } else if (data.success && data.images.length === 0) {
+                            this.showNotification(`❌ No images found for "${query}". Try a different search term.`);
+                            console.log('[Custom Search] No images found');
                         } else {
-                            alert(data.message || 'Search failed. Please try again.');
+                            this.showNotification('❌ ' + (data.message || 'Search failed. Please try again.'));
+                            console.error('[Custom Search] Failed:', data);
                         }
                     } catch (error) {
-                        console.error('Error in custom search:', error);
-                        alert('Search failed. Please try again.');
+                        console.error('[Custom Search] Error:', error);
+                        this.showNotification('❌ Search failed. Check console for details.');
                         document.getElementById('moodBoardStats').textContent = 'Search failed';
                     }
                 }
