@@ -2872,12 +2872,24 @@ def get_top_tracks_playlist():
         sp = get_spotify(token_info)
         logging.info("[Top Tracks] Starting playlist generation...")
 
-        # STEP 1: Get recently played (our foundation - if this works, EVERYTHING works)
+        # STEP 1: Get seed tracks - currently playing + recently played
+        seed_tracks = []
+
+        # Try to get currently playing track first
+        try:
+            current = sp.current_user_playing_track()
+            if current and current.get('item'):
+                seed_tracks.append(current['item'])
+                logging.info(f"[Top Tracks] Got currently playing: {current['item']['name']}")
+        except Exception as e:
+            logging.warning(f"[Top Tracks] No currently playing: {e}")
+
+        # Get recently played tracks
         recently_played = sp.current_user_recently_played(limit=50)
         recently_played_items = recently_played.get('items', [])
 
-        if not recently_played_items:
-            logging.warning("[Top Tracks] No recently played tracks")
+        if not recently_played_items and not seed_tracks:
+            logging.warning("[Top Tracks] No listening data at all")
             return jsonify({
                 "success": True,
                 "message": "Not enough listening history. Keep listening!",
@@ -2887,68 +2899,70 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Found {len(recently_played_items)} recently played")
 
+        # Add top 10 recently played to seeds
+        for item in recently_played_items[:10]:
+            seed_tracks.append(item['track'])
+
         # Build play count map
         play_count_map = {}
-        recently_played_ids = set()
         for item in recently_played_items:
             track_id = item['track']['id']
-            recently_played_ids.add(track_id)
             play_count_map[track_id] = play_count_map.get(track_id, 0) + 1
 
-        # STEP 2: Get seed tracks (use recently played if top tracks unavailable)
-        top_tracks = []
-        try:
-            top_tracks_result = sp.current_user_top_tracks(limit=5, time_range='short_term')
-            top_tracks = top_tracks_result.get('items', [])
-            logging.info(f"[Top Tracks] Got {len(top_tracks)} top tracks")
-        except:
-            logging.info("[Top Tracks] Using recently played as seeds")
-            top_tracks = [item['track'] for item in recently_played_items[:5]]
+        # Get names for display
+        top_track_names = [track['name'] for track in seed_tracks[:5]]
 
-        top_track_names = [track['name'] for track in top_tracks]
-
-        # STEP 3: SPOTIFY RADIO - This is the GUARANTEED method!
+        # STEP 2: SPOTIFY RADIO - Get 1 recommendation per seed track
         all_recommendations = []
         seen_track_ids = set()
 
-        # Add seeds to seen list
-        for track in top_tracks:
+        # Add seed tracks to seen list
+        for track in seed_tracks:
             seen_track_ids.add(track['id'])
 
-        logging.info("[Top Tracks] Using Spotify Radio (1-2 songs per track)")
+        logging.info(f"[Top Tracks] Using Spotify Radio for {len(seed_tracks)} seed tracks")
 
-        # Get 1-2 radio recommendations for each recently played track
-        for item in recently_played_items[:10]:  # Use top 10 recently played
-            track = item['track']
+        # For each seed track, get Spotify radio recommendations
+        import random
+        for track in seed_tracks:
             track_id = track['id']
+            track_name = track['name']
 
             try:
-                # Spotify radio style - get similar songs
-                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=2)
+                # Get radio recommendations (Spotify's algorithm for similar songs)
+                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=5)
+                radio_tracks = radio_recs.get('tracks', [])
 
-                for rec_track in radio_recs.get('tracks', []):
-                    rec_id = rec_track['id']
+                if radio_tracks:
+                    # Select 1 track: First one (most similar) OR random
+                    selected = radio_tracks[0]  # Most similar
+                    # OR: selected = random.choice(radio_tracks)  # Random
+
+                    rec_id = selected['id']
                     if rec_id not in seen_track_ids:
                         seen_track_ids.add(rec_id)
                         all_recommendations.append({
                             'id': rec_id,
-                            'name': rec_track['name'],
-                            'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
-                            'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
-                            'album': rec_track['album']['name'],
-                            'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
-                            'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
+                            'name': selected['name'],
+                            'artist': ', '.join([artist['name'] for artist in selected['artists']]),
+                            'artists': [{'name': artist['name'], 'id': artist['id']} for artist in selected['artists']],
+                            'album': selected['album']['name'],
+                            'album_art': selected['album']['images'][0]['url'] if selected['album']['images'] else None,
+                            'artist_id': selected['artists'][0]['id'] if selected['artists'] else None,
                             'play_count': play_count_map.get(rec_id, 0),
-                            'preview_url': rec_track.get('preview_url'),
-                            'uri': rec_track['uri']
+                            'preview_url': selected.get('preview_url'),
+                            'uri': selected['uri']
                         })
+                        logging.info(f"[Top Tracks] ✓ Got rec for '{track_name}': {selected['name']}")
 
-                        # Stop once we have enough
+                        # Stop if we have enough
                         if len(all_recommendations) >= 20:
                             break
+                else:
+                    logging.warning(f"[Top Tracks] ✗ No recs for '{track_name}'")
 
             except Exception as e:
-                logging.warning(f"[Top Tracks] Radio failed for {track['name']}: {e}")
+                logging.warning(f"[Top Tracks] ✗ Radio failed for '{track_name}': {e}")
                 continue
 
             if len(all_recommendations) >= 20:
@@ -2956,24 +2970,24 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Spotify radio found {len(all_recommendations)} tracks")
 
-        # ULTIMATE FALLBACK: Just use recently played
+        # ULTIMATE FALLBACK: Just use recently played (DON'T filter!)
         if len(all_recommendations) == 0:
-            logging.warning("[Top Tracks] Radio failed, using recently played")
+            logging.warning("[Top Tracks] Radio failed, using recently played AS-IS")
+            # Just use the tracks directly - no filtering!
             for item in recently_played_items[:20]:
                 track = item['track']
-                if track['id'] not in seen_track_ids:
-                    all_recommendations.append({
-                        'id': track['id'],
-                        'name': track['name'],
-                        'artist': ', '.join([artist['name'] for artist in track['artists']]),
-                        'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
-                        'album': track['album']['name'],
-                        'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                        'artist_id': track['artists'][0]['id'] if track['artists'] else None,
-                        'play_count': play_count_map.get(track['id'], 0),
-                        'preview_url': track.get('preview_url'),
-                        'uri': track['uri']
-                    })
+                all_recommendations.append({
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                    'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
+                    'album': track['album']['name'],
+                    'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
+                    'artist_id': track['artists'][0]['id'] if track['artists'] else None,
+                    'play_count': play_count_map.get(track['id'], 0),
+                    'preview_url': track.get('preview_url'),
+                    'uri': track['uri']
+                })
 
         # Sort by play count
         all_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
