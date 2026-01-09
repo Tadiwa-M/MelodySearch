@@ -34,7 +34,7 @@ The main application file is a comprehensive single-page application with embedd
 ├── <head>
 │   ├── Meta tags (charset, viewport)
 │   ├── Title: "MelodySearch - Discover New Music Everyday"
-│   └── <style> (Lines 7-5233) - All CSS styling
+│   └── <style> (Lines 7-2011) - All CSS styling
 └── <body>
     ├── Container (.container)
     │   ├── Header Section (.header)
@@ -71,7 +71,7 @@ The main application file is a comprehensive single-page application with embedd
     │       └── Top Tracks Tab Content
     │           └── Personalized top tracks playlist
     │
-    └── <script> (Lines 5235-5841) - JavaScript logic
+    └── <script> (Lines 2012-5841) - JavaScript logic
 ```
 
 #### Key Sections Explained
@@ -176,11 +176,13 @@ MelodySearch uses a **dark theme** inspired by Spotify's design language.
 - `#666666` - Quaternary text (dark gray)
 
 **Accent Colors:**
-- `#1ed760` - Primary accent (Spotify green)
+- `#1ed760` / `#1db954` - Primary accent (Spotify green variations)
 - `#1fdf64` - Accent hover state
 - `#e22134` - Error/recording state (red)
 - `#ff6b35` - Essentia method badge (orange)
 - `#9c88ff` - Metadata method badge (purple)
+
+*Note: Both #1ed760 and #1db954 are used as Spotify green - they are very similar shades.*
 
 #### Typography
 
@@ -647,10 +649,11 @@ body {
 - **768px breakpoint**: Tablet and below
   - Single column layouts
   - Stacked forms
-  - 2-column masonry
+  - 2-column masonry grid
   
 - **480px breakpoint**: Small phones
-  - Smaller text
+  - Smaller text (1.5rem headings)
+  - 2-column masonry grid (maintained from 768px)
   - Simplified layouts
 
 ---
@@ -923,7 +926,7 @@ The CSS is well-organized within the HTML files, making it easy to maintain whil
 
 ## File Locations
 
-- **Main App**: `/templates/index.html` (Lines 7-5233 for CSS)
+- **Main App**: `/templates/index.html` (Lines 7-2011 for CSS, Lines 2012-5841 for JavaScript)
 - **Privacy Page**: `/templates/privacy.html` (Lines 7-46 for CSS)
 - **No separate CSS files** - all styles are embedded
 
