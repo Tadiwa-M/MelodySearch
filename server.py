@@ -2869,7 +2869,8 @@ def get_top_tracks_playlist():
                 status_code=401
             )
 
-        sp = get_spotify(token_info)
+        auth_manager = get_auth_manager()
+        sp = spotipy.Spotify(auth_manager=auth_manager)
         logging.info("[Top Tracks] Starting playlist generation...")
 
         # STEP 1: Get seed tracks - currently playing + recently played
@@ -3001,9 +3002,9 @@ def get_top_tracks_playlist():
         cover_tracks = playlist_tracks[:4] if len(playlist_tracks) >= 4 else playlist_tracks
         cover_images = [track['album_art'] for track in cover_tracks if track['album_art']]
 
-        # Pad with top tracks
+        # Pad with seed tracks if needed
         if len(cover_images) < 4:
-            for track in top_tracks:
+            for track in seed_tracks:
                 if len(cover_images) >= 4:
                     break
                 album_art = track['album']['images'][0]['url'] if track['album']['images'] else None
