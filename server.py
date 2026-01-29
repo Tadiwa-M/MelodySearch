@@ -2926,9 +2926,15 @@ def get_top_tracks_playlist():
         for item in recently_played_items:
             seen_track_ids.add(item['track']['id'])
 
-        # Also add seed tracks to avoid recommending them
-        for track in seed_tracks:
-            seen_track_ids.add(track['id'])
+        # Filter out ALL top tracks (short, medium, long term) - songs you've already heard a lot
+        for time_range in ['short_term', 'medium_term', 'long_term']:
+            try:
+                top_tracks = sp.current_user_top_tracks(limit=50, time_range=time_range)
+                for track in top_tracks.get('items', []):
+                    seen_track_ids.add(track['id'])
+                logging.info(f"[Top Tracks] Filtered {len(top_tracks.get('items', []))} {time_range} top tracks")
+            except Exception as e:
+                logging.warning(f"[Top Tracks] Could not get {time_range} top tracks for filtering: {e}")
 
         logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks (only NEW songs)")
 
