@@ -2918,9 +2918,16 @@ def get_top_tracks_playlist():
         all_recommendations = []
         seen_track_ids = set()
 
-        # Add all seed track IDs to seen set (don't recommend songs they already heard)
+        # Add ALL recently played track IDs to seen set (not just seeds)
+        # This ensures we only get NEW song discoveries, not songs already in listening history
+        for item in recently_played_items:
+            seen_track_ids.add(item['track']['id'])
+
+        # Also add seed tracks (in case currently playing isn't in recently played)
         for track in seed_tracks:
             seen_track_ids.add(track['id'])
+
+        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
 
         for idx, seed_track in enumerate(seed_tracks):
             track_name = seed_track['name']
