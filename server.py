@@ -2995,61 +2995,67 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
 
-        # STEP 5: Get related artists (Recommendations API is broken - 404 errors)
-        logging.info("[Top Tracks] Finding related artists for discovery...")
+        # STEP 5: Get more tracks from your top artists (all discovery APIs are broken - 404)
+        logging.info("[Top Tracks] All Spotify discovery APIs broken - using your top artists instead")
+        logging.info("[Top Tracks] Getting more tracks from your favorite artists...")
 
-        related_artists_set = set()
-        for artist in top_artists[:3]:  # Use top 3 artists
-            try:
-                related = sp.artist_related_artists(artist['id'])
-                related_list = related.get('artists', [])
-                logging.info(f"[Top Tracks] Found {len(related_list)} related artists for {artist['name']}")
-
-                for rel_artist in related_list[:10]:  # Take top 10 related per artist
-                    related_artists_set.add((rel_artist['id'], rel_artist['name']))
-            except Exception as e:
-                logging.error(f"[Top Tracks] Error getting related artists for {artist['name']}: {e}")
-
-        related_artists_list = list(related_artists_set)
-        logging.info(f"[Top Tracks] Total {len(related_artists_list)} unique related artists found")
-
-        # STEP 6: Get top tracks from related artists
-        logging.info("[Top Tracks] Getting top tracks from related artists...")
+        # Just use the top artists we already have
+        artists_to_explore = top_artists[:10]  # Use top 10 artists
 
         try:
-            for idx, (artist_id, artist_name) in enumerate(related_artists_list[:20]):  # Limit to 20 artists
+            for idx, artist in enumerate(artists_to_explore):
                 try:
-                    top_tracks_result = sp.artist_top_tracks(artist_id)
-                    tracks = top_tracks_result.get('tracks', [])
+                    artist_id = artist['id']
+                    artist_name = artist['name']
 
-                    logging.info(f"[Top Tracks] [{idx+1}/{min(20, len(related_artists_list))}] {artist_name}: {len(tracks)} tracks")
+                    # Get all albums by this artist
+                    albums_result = sp.artist_albums(artist_id, limit=20, album_type='album,single')
+                    albums = albums_result.get('items', [])
 
-                    # Take up to 2 NEW tracks per artist
-                    found_count = 0
-                    for track in tracks:
-                        if track['id'] not in seen_track_ids:
-                            seen_track_ids.add(track['id'])
-                            all_recommendations.append({
-                                'id': track['id'],
-                                'name': track['name'],
-                                'artist': ', '.join([artist['name'] for artist in track['artists']]),
-                                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
-                                'album': track['album']['name'],
-                                'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                                'artist_id': track['artists'][0]['id'] if track['artists'] else None,
-                                'preview_url': track.get('preview_url'),
-                                'uri': track['uri']
-                            })
-                            found_count += 1
-                            if found_count >= 2:  # Take 2 per artist
+                    logging.info(f"[Top Tracks] [{idx+1}/{len(artists_to_explore)}] {artist_name}: {len(albums)} albums/singles")
+
+                    # Get tracks from albums
+                    for album in albums[:5]:  # Limit to 5 most recent albums
+                        try:
+                            album_tracks = sp.album_tracks(album['id'], limit=50)
+                            tracks = album_tracks.get('items', [])
+
+                            for track in tracks:
+                                if track['id'] and track['id'] not in seen_track_ids:
+                                    # Get full track info (album_tracks doesn't include album art)
+                                    try:
+                                        full_track = sp.track(track['id'])
+                                        seen_track_ids.add(track['id'])
+                                        all_recommendations.append({
+                                            'id': full_track['id'],
+                                            'name': full_track['name'],
+                                            'artist': ', '.join([artist['name'] for artist in full_track['artists']]),
+                                            'artists': [{'name': artist['name'], 'id': artist['id']} for artist in full_track['artists']],
+                                            'album': full_track['album']['name'],
+                                            'album_art': full_track['album']['images'][0]['url'] if full_track['album']['images'] else None,
+                                            'artist_id': full_track['artists'][0]['id'] if full_track['artists'] else None,
+                                            'preview_url': full_track.get('preview_url'),
+                                            'uri': full_track['uri']
+                                        })
+
+                                        # Stop if we have enough
+                                        if len(all_recommendations) >= 30:
+                                            break
+                                    except:
+                                        continue
+
+                            if len(all_recommendations) >= 30:
                                 break
+                        except Exception as e:
+                            logging.error(f"[Top Tracks] Error getting album tracks: {e}")
+                            continue
 
-                    if found_count > 0:
-                        logging.info(f"[Top Tracks]   ✓ Added {found_count} NEW tracks from {artist_name}")
-
-                    # Stop if we have enough
                     if len(all_recommendations) >= 30:
+                        logging.info(f"[Top Tracks] Reached 30 tracks, stopping")
                         break
+
+                    if len(all_recommendations) > 0:
+                        logging.info(f"[Top Tracks]   ✓ Found {len(all_recommendations)} NEW tracks so far")
 
                 except Exception as e:
                     logging.error(f"[Top Tracks] Error getting tracks for {artist_name}: {e}")
