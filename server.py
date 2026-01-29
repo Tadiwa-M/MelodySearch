@@ -2995,69 +2995,70 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
 
-        # STEP 5: Get recommendations using seed artists + audio feature targets
-        logging.info("[Top Tracks] Requesting recommendations with audio feature matching...")
+        # STEP 5: Get related artists (Recommendations API is broken - 404 errors)
+        logging.info("[Top Tracks] Finding related artists for discovery...")
+
+        related_artists_set = set()
+        for artist in top_artists[:3]:  # Use top 3 artists
+            try:
+                related = sp.artist_related_artists(artist['id'])
+                related_list = related.get('artists', [])
+                logging.info(f"[Top Tracks] Found {len(related_list)} related artists for {artist['name']}")
+
+                for rel_artist in related_list[:10]:  # Take top 10 related per artist
+                    related_artists_set.add((rel_artist['id'], rel_artist['name']))
+            except Exception as e:
+                logging.error(f"[Top Tracks] Error getting related artists for {artist['name']}: {e}")
+
+        related_artists_list = list(related_artists_set)
+        logging.info(f"[Top Tracks] Total {len(related_artists_list)} unique related artists found")
+
+        # STEP 6: Get top tracks from related artists
+        logging.info("[Top Tracks] Getting top tracks from related artists...")
 
         try:
-            # Request 100 recommendations using artist seeds and target audio features
-            radio_recs = sp.recommendations(
-                seed_artists=seed_artist_ids,
-                limit=100,
-                target_energy=avg_features['energy'],
-                target_danceability=avg_features['danceability'],
-                target_valence=avg_features['valence'],
-                target_tempo=avg_features['tempo'],
-                target_acousticness=avg_features['acousticness'],
-                target_instrumentalness=avg_features['instrumentalness'],
-                target_speechiness=avg_features['speechiness']
-            )
-            radio_tracks = radio_recs.get('tracks', [])
+            for idx, (artist_id, artist_name) in enumerate(related_artists_list[:20]):  # Limit to 20 artists
+                try:
+                    top_tracks_result = sp.artist_top_tracks(artist_id)
+                    tracks = top_tracks_result.get('tracks', [])
 
-            logging.info(f"[Top Tracks] Spotify returned {len(radio_tracks)} recommendations using audio features")
+                    logging.info(f"[Top Tracks] [{idx+1}/{min(20, len(related_artists_list))}] {artist_name}: {len(tracks)} tracks")
 
-            # Count duplicates vs new
-            duplicate_count = 0
-            new_count = 0
-            for rt in radio_tracks:
-                if rt['id'] in seen_track_ids:
-                    duplicate_count += 1
-                else:
-                    new_count += 1
+                    # Take up to 2 NEW tracks per artist
+                    found_count = 0
+                    for track in tracks:
+                        if track['id'] not in seen_track_ids:
+                            seen_track_ids.add(track['id'])
+                            all_recommendations.append({
+                                'id': track['id'],
+                                'name': track['name'],
+                                'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
+                                'album': track['album']['name'],
+                                'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
+                                'artist_id': track['artists'][0]['id'] if track['artists'] else None,
+                                'preview_url': track.get('preview_url'),
+                                'uri': track['uri']
+                            })
+                            found_count += 1
+                            if found_count >= 2:  # Take 2 per artist
+                                break
 
-            logging.info(f"[Top Tracks] Analysis: {new_count} NEW songs, {duplicate_count} already-heard")
+                    if found_count > 0:
+                        logging.info(f"[Top Tracks]   ✓ Added {found_count} NEW tracks from {artist_name}")
 
-            # Log first 15 to see what we got
-            logging.info("[Top Tracks] First 15 recommendations:")
-            for i, rt in enumerate(radio_tracks[:15]):
-                is_duplicate = rt['id'] in seen_track_ids
-                status = "ALREADY HEARD" if is_duplicate else "NEW ✓"
-                logging.info(f"  #{i+1}: '{rt['name']}' by {rt['artists'][0]['name']} [{status}]")
+                    # Stop if we have enough
+                    if len(all_recommendations) >= 30:
+                        break
 
-            if len(radio_tracks) > 15:
-                logging.info(f"  ... and {len(radio_tracks) - 15} more")
+                except Exception as e:
+                    logging.error(f"[Top Tracks] Error getting tracks for {artist_name}: {e}")
+                    continue
 
-            # Take all NEW recommendations
-            found_count = 0
-            for candidate in radio_tracks:
-                if candidate['id'] not in seen_track_ids:
-                    seen_track_ids.add(candidate['id'])
-                    all_recommendations.append({
-                        'id': candidate['id'],
-                        'name': candidate['name'],
-                        'artist': ', '.join([artist['name'] for artist in candidate['artists']]),
-                        'artists': [{'name': artist['name'], 'id': artist['id']} for artist in candidate['artists']],
-                        'album': candidate['album']['name'],
-                        'album_art': candidate['album']['images'][0]['url'] if candidate['album']['images'] else None,
-                        'artist_id': candidate['artists'][0]['id'] if candidate['artists'] else None,
-                        'preview_url': candidate.get('preview_url'),
-                        'uri': candidate['uri']
-                    })
-                    found_count += 1
-
-            logging.info(f"[Top Tracks] ✓ Selected {found_count} NEW discoveries")
+            logging.info(f"[Top Tracks] Successfully processed related artists")
 
         except Exception as e:
-            logging.error(f"[Top Tracks] ✗ ERROR getting recommendations: {e}")
+            logging.error(f"[Top Tracks] ✗ ERROR finding related artist tracks: {e}")
             logging.exception(e)
 
         logging.info(f"[Top Tracks] ========================================")
