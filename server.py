@@ -2890,8 +2890,14 @@ def get_top_tracks_playlist():
             return jsonify({
                 "success": True,
                 "message": "Not enough listening history. Keep listening!",
-                "playlist": [],
-                "cover_images": []
+                "playlist": {
+                    "name": "Songs You'd Like",
+                    "description": "Not enough listening history yet",
+                    "tracks": [],
+                    "track_count": 0,
+                    "cover_images": [],
+                    "seed_tracks": []
+                }
             }), 200
 
         logging.info(f"[Top Tracks] Found {len(recently_played_items)} recently played")
