@@ -2918,16 +2918,17 @@ def get_top_tracks_playlist():
         all_recommendations = []
         seen_track_ids = set()
 
-        # Add ALL recently played track IDs to seen set (not just seeds)
-        # This ensures we only get NEW song discoveries, not songs already in listening history
-        for item in recently_played_items:
+        # Only filter the MOST RECENT tracks (not all 50)
+        # Spotify Radio strategy: Filter recent plays, but allow older history to reappear
+        recent_limit = min(15, len(recently_played_items))
+        for item in recently_played_items[:recent_limit]:
             seen_track_ids.add(item['track']['id'])
 
         # Also add seed tracks (in case currently playing isn't in recently played)
         for track in seed_tracks:
             seen_track_ids.add(track['id'])
 
-        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
+        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} most recent tracks (out of {len(recently_played_items)} total)")
 
         for idx, seed_track in enumerate(seed_tracks):
             track_name = seed_track['name']
@@ -2948,8 +2949,8 @@ def get_top_tracks_playlist():
                     logging.info(f"[Top Tracks]   Option {i+1}: '{rt['name']}' by {rt['artists'][0]['name']} (duplicate: {is_duplicate})")
 
                 if radio_tracks:
-                    # Find first track that's not a duplicate
-                    found_recommendation = False
+                    # Take multiple recommendations per seed (up to 4)
+                    found_count = 0
                     for candidate in radio_tracks:
                         if candidate['id'] not in seen_track_ids:
                             seen_track_ids.add(candidate['id'])
@@ -2965,10 +2966,11 @@ def get_top_tracks_playlist():
                                 'uri': candidate['uri']
                             })
                             logging.info(f"[Top Tracks] ✓ SELECTED: '{track_name}' → '{candidate['name']}' by {candidate['artists'][0]['name']}")
-                            found_recommendation = True
-                            break  # Only take 1 per seed
+                            found_count += 1
+                            if found_count >= 4:  # Take up to 4 per seed
+                                break
 
-                    if not found_recommendation:
+                    if found_count == 0:
                         logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were duplicates for '{track_name}'")
                 else:
                     logging.warning(f"[Top Tracks] ✗ Spotify returned 0 recommendations for '{track_name}'")
