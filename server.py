@@ -2949,12 +2949,27 @@ def get_top_tracks_playlist():
                 radio_recs = sp.recommendations(seed_tracks=[track_id], limit=50)
                 radio_tracks = radio_recs.get('tracks', [])
 
-                logging.info(f"[Top Tracks] Got {len(radio_tracks)} recommendations from Spotify")
+                logging.info(f"[Top Tracks] Spotify returned {len(radio_tracks)} recommendations")
 
-                # Log what Spotify returned
-                for i, rt in enumerate(radio_tracks):
+                # Count duplicates vs new
+                duplicate_count = 0
+                new_count = 0
+                for rt in radio_tracks:
+                    if rt['id'] in seen_track_ids:
+                        duplicate_count += 1
+                    else:
+                        new_count += 1
+
+                logging.info(f"[Top Tracks] Analysis: {new_count} NEW songs, {duplicate_count} already-heard (duplicates)")
+
+                # Log first 10 to see what Spotify is actually returning
+                for i, rt in enumerate(radio_tracks[:10]):
                     is_duplicate = rt['id'] in seen_track_ids
-                    logging.info(f"[Top Tracks]   Option {i+1}: '{rt['name']}' by {rt['artists'][0]['name']} (duplicate: {is_duplicate})")
+                    status = "ALREADY HEARD" if is_duplicate else "NEW"
+                    logging.info(f"[Top Tracks]   #{i+1}: '{rt['name']}' by {rt['artists'][0]['name']} [{status}]")
+
+                if len(radio_tracks) > 10:
+                    logging.info(f"[Top Tracks]   ... and {len(radio_tracks) - 10} more recommendations")
 
                 if radio_tracks:
                     # Take up to 2 NEW recommendations per seed
@@ -2973,13 +2988,15 @@ def get_top_tracks_playlist():
                                 'preview_url': candidate.get('preview_url'),
                                 'uri': candidate['uri']
                             })
-                            logging.info(f"[Top Tracks] ✓ NEW DISCOVERY: '{track_name}' → '{candidate['name']}' by {candidate['artists'][0]['name']}")
+                            logging.info(f"[Top Tracks] ✓ SELECTED NEW DISCOVERY: '{candidate['name']}' by {candidate['artists'][0]['name']}")
                             found_count += 1
                             if found_count >= 2:  # Take 2 NEW songs per seed
                                 break
 
                     if found_count == 0:
-                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were already in your history for '{track_name}'")
+                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were already-heard for seed '{track_name}'")
+                    else:
+                        logging.info(f"[Top Tracks] ✓ Found {found_count} new discoveries from this seed")
                 else:
                     logging.warning(f"[Top Tracks] ✗ Spotify returned 0 recommendations for '{track_name}'")
 
@@ -2987,7 +3004,12 @@ def get_top_tracks_playlist():
                 logging.error(f"[Top Tracks] ✗ ERROR for '{track_name}': {e}")
                 continue
 
-        logging.info(f"[Top Tracks] Generated {len(all_recommendations)} recommendations")
+        logging.info(f"[Top Tracks] ========================================")
+        logging.info(f"[Top Tracks] FINAL RESULTS:")
+        logging.info(f"[Top Tracks] - Processed {len(seed_tracks)} seed tracks")
+        logging.info(f"[Top Tracks] - Filtered out {len(seen_track_ids)} already-heard songs")
+        logging.info(f"[Top Tracks] - Found {len(all_recommendations)} NEW discoveries")
+        logging.info(f"[Top Tracks] ========================================")
 
         # If no NEW recommendations found (all were duplicates), return empty
         if len(all_recommendations) == 0:
