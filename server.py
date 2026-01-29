@@ -2890,8 +2890,14 @@ def get_top_tracks_playlist():
             return jsonify({
                 "success": True,
                 "message": "Not enough listening history. Keep listening!",
-                "playlist": [],
-                "cover_images": []
+                "playlist": {
+                    "name": "Songs You'd Like",
+                    "description": "Not enough listening history yet",
+                    "tracks": [],
+                    "track_count": 0,
+                    "cover_images": [],
+                    "seed_tracks": []
+                }
             }), 200
 
         logging.info(f"[Top Tracks] Found {len(recently_played_items)} recently played")
@@ -2912,21 +2918,38 @@ def get_top_tracks_playlist():
         all_recommendations = []
         seen_track_ids = set()
 
-        # Add all seed track IDs to seen set (don't recommend songs they already heard)
+        # Add ALL recently played track IDs to seen set (not just seeds)
+        # This ensures we only get NEW song discoveries, not songs already in listening history
+        for item in recently_played_items:
+            seen_track_ids.add(item['track']['id'])
+
+        # Also add seed tracks (in case currently playing isn't in recently played)
         for track in seed_tracks:
             seen_track_ids.add(track['id'])
+
+        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
 
         for idx, seed_track in enumerate(seed_tracks):
             track_name = seed_track['name']
             track_id = seed_track['id']
+            track_artist = seed_track['artists'][0]['name']
 
             try:
                 # Get Spotify radio recommendations
+                logging.info(f"[Top Tracks] [{idx+1}/{len(seed_tracks)}] Getting recs for '{track_name}' by {track_artist}")
                 radio_recs = sp.recommendations(seed_tracks=[track_id], limit=5)
                 radio_tracks = radio_recs.get('tracks', [])
 
+                logging.info(f"[Top Tracks] Got {len(radio_tracks)} recommendations from Spotify")
+
+                # Log what Spotify returned
+                for i, rt in enumerate(radio_tracks):
+                    is_duplicate = rt['id'] in seen_track_ids
+                    logging.info(f"[Top Tracks]   Option {i+1}: '{rt['name']}' by {rt['artists'][0]['name']} (duplicate: {is_duplicate})")
+
                 if radio_tracks:
                     # Find first track that's not a duplicate
+                    found_recommendation = False
                     for candidate in radio_tracks:
                         if candidate['id'] not in seen_track_ids:
                             seen_track_ids.add(candidate['id'])
@@ -2941,13 +2964,17 @@ def get_top_tracks_playlist():
                                 'preview_url': candidate.get('preview_url'),
                                 'uri': candidate['uri']
                             })
-                            logging.info(f"[Top Tracks] [{idx+1}/{len(seed_tracks)}] '{track_name}' → '{candidate['name']}'")
+                            logging.info(f"[Top Tracks] ✓ SELECTED: '{track_name}' → '{candidate['name']}' by {candidate['artists'][0]['name']}")
+                            found_recommendation = True
                             break  # Only take 1 per seed
+
+                    if not found_recommendation:
+                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were duplicates for '{track_name}'")
                 else:
-                    logging.warning(f"[Top Tracks] No recs for '{track_name}'")
+                    logging.warning(f"[Top Tracks] ✗ Spotify returned 0 recommendations for '{track_name}'")
 
             except Exception as e:
-                logging.warning(f"[Top Tracks] Failed for '{track_name}': {e}")
+                logging.error(f"[Top Tracks] ✗ ERROR for '{track_name}': {e}")
                 continue
 
         logging.info(f"[Top Tracks] Generated {len(all_recommendations)} recommendations")

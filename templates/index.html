@@ -5392,7 +5392,14 @@
                         const response = await fetch('/top-tracks-playlist');
                         const data = await response.json();
 
-                        if (data.success && data.playlist && data.playlist.tracks.length > 0) {
+                        console.log('[Top Tracks] Received data:', data);
+
+                        if (data.success &&
+                            data.playlist &&
+                            !Array.isArray(data.playlist) &&
+                            data.playlist.tracks &&
+                            Array.isArray(data.playlist.tracks) &&
+                            data.playlist.tracks.length > 0) {
                             this.playlistData = data.playlist;
                             this.renderPlaylist();
 
@@ -5405,7 +5412,7 @@
                             // Show empty state
                             loadingEl.style.display = 'none';
                             emptyEl.style.display = 'flex';
-                            console.log('[Top Tracks] Not enough data');
+                            console.log('[Top Tracks] Not enough data or invalid format. Playlist:', data.playlist);
                         }
                     } catch (error) {
                         console.error('[Top Tracks] Error loading playlist:', error);
