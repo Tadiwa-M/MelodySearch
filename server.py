@@ -2852,12 +2852,10 @@ def custom_mood_board_search():
 @app.route('/top-tracks-playlist', methods=['GET'])
 def get_top_tracks_playlist():
     """
-    Generate a personalized playlist - GUARANTEED to work!
+    Generate personalized song recommendations using metadata cosine similarity.
 
-    Multiple fallback strategies ensure this ALWAYS returns results:
-    1. Metadata similarity search (like /search endpoint)
-    2. Spotify Radio (1-2 songs per recently played track)
-    3. Recently played tracks as ultimate fallback
+    For each song in listening history, find 1 most similar recommendation.
+    Uses the same metadata similarity engine as the /search endpoint.
     """
     try:
         token_info = session.get('token_info')
@@ -2871,9 +2869,9 @@ def get_top_tracks_playlist():
 
         auth_manager = get_auth_manager()
         sp = spotipy.Spotify(auth_manager=auth_manager)
-        logging.info("[Top Tracks] Starting playlist generation...")
+        logging.info("[Top Tracks] Starting personalized playlist generation...")
 
-        # STEP 1: Get seed tracks - currently playing + recently played
+        # STEP 1: Get listening history (currently playing + recently played)
         seed_tracks = []
 
         # Try to get currently playing track first
@@ -2881,7 +2879,7 @@ def get_top_tracks_playlist():
             current = sp.current_user_playing_track()
             if current and current.get('item'):
                 seed_tracks.append(current['item'])
-                logging.info(f"[Top Tracks] Got currently playing: {current['item']['name']}")
+                logging.info(f"[Top Tracks] Currently playing: {current['item']['name']}")
         except Exception as e:
             logging.warning(f"[Top Tracks] No currently playing: {e}")
 
@@ -2890,7 +2888,7 @@ def get_top_tracks_playlist():
         recently_played_items = recently_played.get('items', [])
 
         if not recently_played_items and not seed_tracks:
-            logging.warning("[Top Tracks] No listening data at all")
+            logging.warning("[Top Tracks] No listening history")
             return jsonify({
                 "success": True,
                 "message": "Not enough listening history. Keep listening!",
@@ -2900,105 +2898,154 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Found {len(recently_played_items)} recently played")
 
-        # Add top 10 recently played to seeds
-        for item in recently_played_items[:10]:
-            seed_tracks.append(item['track'])
+        # Add recently played to seeds (limit to 20 for performance)
+        for item in recently_played_items[:20]:
+            track = item['track']
+            # Avoid duplicates in seed list
+            if not any(s['id'] == track['id'] for s in seed_tracks):
+                seed_tracks.append(track)
 
-        # Build play count map
-        play_count_map = {}
-        for item in recently_played_items:
-            track_id = item['track']['id']
-            play_count_map[track_id] = play_count_map.get(track_id, 0) + 1
+        logging.info(f"[Top Tracks] Using {len(seed_tracks)} seed tracks for recommendations")
 
-        # Get names for display
+        # Track names for display
         top_track_names = [track['name'] for track in seed_tracks[:5]]
 
-        # STEP 2: SPOTIFY RADIO - Get 1 recommendation per seed track
+        # Initialize metadata similarity engine
+        similarity_engine = MetadataSimilarityEngine(sp)
+
+        # STEP 2: For each seed track, find 1 best recommendation using cosine similarity
         all_recommendations = []
         seen_track_ids = set()
 
-        # Add seed tracks to seen list
+        # Add all seed track IDs to seen set
         for track in seed_tracks:
             seen_track_ids.add(track['id'])
 
-        logging.info(f"[Top Tracks] Using Spotify Radio for {len(seed_tracks)} seed tracks")
-
-        # For each seed track, get Spotify radio recommendations
-        import random
-        for track in seed_tracks:
-            track_id = track['id']
-            track_name = track['name']
+        for idx, seed_track in enumerate(seed_tracks):
+            track_name = seed_track['name']
+            track_artist = seed_track['artists'][0]['name']
 
             try:
-                # Get radio recommendations (Spotify's algorithm for similar songs)
-                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=5)
-                radio_tracks = radio_recs.get('tracks', [])
+                logging.info(f"[Top Tracks] [{idx+1}/{len(seed_tracks)}] Finding recommendation for '{track_name}' by {track_artist}")
 
-                if radio_tracks:
-                    # Select 1 track: First one (most similar) OR random
-                    selected = radio_tracks[0]  # Most similar
-                    # OR: selected = random.choice(radio_tracks)  # Random
+                # Extract metadata features for seed track
+                seed_metadata = similarity_engine.extract_comprehensive_metadata(
+                    seed_track['id'],
+                    seed_track
+                )
 
-                    rec_id = selected['id']
-                    if rec_id not in seen_track_ids:
-                        seen_track_ids.add(rec_id)
-                        all_recommendations.append({
-                            'id': rec_id,
-                            'name': selected['name'],
-                            'artist': ', '.join([artist['name'] for artist in selected['artists']]),
-                            'artists': [{'name': artist['name'], 'id': artist['id']} for artist in selected['artists']],
-                            'album': selected['album']['name'],
-                            'album_art': selected['album']['images'][0]['url'] if selected['album']['images'] else None,
-                            'artist_id': selected['artists'][0]['id'] if selected['artists'] else None,
-                            'play_count': play_count_map.get(rec_id, 0),
-                            'preview_url': selected.get('preview_url'),
-                            'uri': selected['uri']
+                # Find candidate tracks using metadata-based search
+                candidates = find_metadata_based_candidates(
+                    sp,
+                    seed_track,
+                    seed_metadata,
+                    limit=30
+                )
+
+                # Filter out seeds and already recommended tracks
+                filtered_candidates = [
+                    c for c in candidates
+                    if c.get('spotify_id') not in seen_track_ids
+                ]
+
+                if not filtered_candidates:
+                    logging.warning(f"[Top Tracks] No new candidates for '{track_name}'")
+                    continue
+
+                # Enhance candidates with metadata
+                enhanced_candidates = []
+                for candidate in filtered_candidates[:15]:  # Limit for performance
+                    try:
+                        candidate_metadata = similarity_engine.extract_comprehensive_metadata(
+                            candidate['spotify_id']
+                        )
+
+                        enhanced_candidates.append({
+                            "title": candidate.get('title', 'Unknown'),
+                            "artist": candidate.get('artist', 'Unknown'),
+                            "metadata_features": candidate_metadata,
+                            "spotify_id": candidate.get('spotify_id'),
+                            "popularity": candidate.get('popularity'),
+                            "preview_url": candidate.get('preview_url'),
+                            "spotify_track": candidate  # Keep full track data
                         })
-                        logging.info(f"[Top Tracks] ✓ Got rec for '{track_name}': {selected['name']}")
+                    except Exception as e:
+                        logging.debug(f"Failed to enhance candidate: {e}")
+                        continue
 
-                        # Stop if we have enough
-                        if len(all_recommendations) >= 20:
-                            break
-                else:
-                    logging.warning(f"[Top Tracks] ✗ No recs for '{track_name}'")
+                if not enhanced_candidates:
+                    logging.warning(f"[Top Tracks] No enhanced candidates for '{track_name}'")
+                    continue
+
+                # Calculate similarity scores and get best match
+                similarities = similarity_engine.find_metadata_similarities(
+                    seed_metadata,
+                    enhanced_candidates,
+                    top_n=1  # Get only the BEST match
+                )
+
+                if similarities:
+                    # Get the best match
+                    best_match_title, similarity_score, breakdown = similarities[0]
+
+                    # Find the full track data
+                    best_candidate = next(
+                        (c for c in enhanced_candidates if c['title'] == best_match_title),
+                        None
+                    )
+
+                    if best_candidate and best_candidate['spotify_id'] not in seen_track_ids:
+                        # Get full track details from Spotify
+                        rec_track = sp.track(best_candidate['spotify_id'])
+
+                        seen_track_ids.add(best_candidate['spotify_id'])
+                        all_recommendations.append({
+                            'id': rec_track['id'],
+                            'name': rec_track['name'],
+                            'artist': ', '.join([artist['name'] for artist in rec_track['artists']]),
+                            'artists': [{'name': artist['name'], 'id': artist['id']} for artist in rec_track['artists']],
+                            'album': rec_track['album']['name'],
+                            'album_art': rec_track['album']['images'][0]['url'] if rec_track['album']['images'] else None,
+                            'artist_id': rec_track['artists'][0]['id'] if rec_track['artists'] else None,
+                            'preview_url': rec_track.get('preview_url'),
+                            'uri': rec_track['uri'],
+                            'similarity_score': similarity_score,
+                            'seed_track': track_name
+                        })
+
+                        logging.info(f"[Top Tracks] ✓ '{track_name}' → '{rec_track['name']}' (similarity: {similarity_score:.2f})")
 
             except Exception as e:
-                logging.warning(f"[Top Tracks] ✗ Radio failed for '{track_name}': {e}")
+                logging.warning(f"[Top Tracks] Failed to find recommendation for '{track_name}': {e}")
                 continue
 
-            if len(all_recommendations) >= 20:
-                break
+        logging.info(f"[Top Tracks] Generated {len(all_recommendations)} recommendations")
 
-        logging.info(f"[Top Tracks] Spotify radio found {len(all_recommendations)} tracks")
-
-        # ULTIMATE FALLBACK: Just use recently played (DON'T filter!)
+        # If we got no recommendations, use fallback
         if len(all_recommendations) == 0:
-            logging.warning("[Top Tracks] Radio failed, using recently played AS-IS")
-            # Just use the tracks directly - no filtering!
+            logging.warning("[Top Tracks] No recommendations found, using fallback")
+            # Use recently played as fallback (but just show them, don't pretend they're recommendations)
             for item in recently_played_items[:20]:
                 track = item['track']
-                all_recommendations.append({
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artist': ', '.join([artist['name'] for artist in track['artists']]),
-                    'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
-                    'album': track['album']['name'],
-                    'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                    'artist_id': track['artists'][0]['id'] if track['artists'] else None,
-                    'play_count': play_count_map.get(track['id'], 0),
-                    'preview_url': track.get('preview_url'),
-                    'uri': track['uri']
-                })
+                if track['id'] not in seen_track_ids:
+                    all_recommendations.append({
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artist': ', '.join([artist['name'] for artist in track['artists']]),
+                        'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
+                        'album': track['album']['name'],
+                        'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
+                        'artist_id': track['artists'][0]['id'] if track['artists'] else None,
+                        'preview_url': track.get('preview_url'),
+                        'uri': track['uri']
+                    })
 
-        # Sort by play count
-        all_recommendations.sort(key=lambda x: x['play_count'], reverse=True)
-
-        # Take top 20
+        # Take all recommendations (no sorting by play count - maintain similarity order)
         playlist_tracks = all_recommendations[:20]
 
         logging.info(f"[Top Tracks] Final playlist: {len(playlist_tracks)} tracks")
 
-        # Generate cover
+        # Generate cover images from playlist
         cover_tracks = playlist_tracks[:4] if len(playlist_tracks) >= 4 else playlist_tracks
         cover_images = [track['album_art'] for track in cover_tracks if track['album_art']]
 
