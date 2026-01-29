@@ -2869,8 +2869,7 @@ def get_top_tracks_playlist():
         sp = spotipy.Spotify(auth_manager=auth_manager)
         logging.info("[Top Tracks] Starting personalized playlist generation...")
 
-        # STEP 1: Get Top Tracks for better recommendations (not recently played)
-        # Using Top Tracks gives more diverse recommendations than recently played
+        # STEP 1: Get Top Tracks to analyze audio features
         try:
             top_tracks_response = sp.current_user_top_tracks(limit=20, time_range='medium_term')
             seed_tracks = top_tracks_response.get('items', [])
@@ -2918,15 +2917,73 @@ def get_top_tracks_playlist():
         # Track names for display
         top_track_names = [track['name'] for track in seed_tracks[:5]]
 
-        # STEP 2: Get recommendations using Spotify Radio
+        # STEP 2: Analyze audio features of top tracks
+        logging.info("[Top Tracks] Analyzing audio features to find similar songs...")
+
+        # Get audio features for seed tracks
+        seed_track_ids = [track['id'] for track in seed_tracks]
+        try:
+            audio_features_list = sp.audio_features(seed_track_ids)
+            audio_features_list = [af for af in audio_features_list if af is not None]
+
+            if not audio_features_list:
+                raise Exception("No audio features returned")
+
+            # Calculate average features
+            avg_features = {
+                'energy': sum(af['energy'] for af in audio_features_list) / len(audio_features_list),
+                'danceability': sum(af['danceability'] for af in audio_features_list) / len(audio_features_list),
+                'valence': sum(af['valence'] for af in audio_features_list) / len(audio_features_list),
+                'tempo': sum(af['tempo'] for af in audio_features_list) / len(audio_features_list),
+                'acousticness': sum(af['acousticness'] for af in audio_features_list) / len(audio_features_list),
+                'instrumentalness': sum(af['instrumentalness'] for af in audio_features_list) / len(audio_features_list),
+                'speechiness': sum(af['speechiness'] for af in audio_features_list) / len(audio_features_list),
+            }
+
+            logging.info(f"[Top Tracks] Your music profile:")
+            logging.info(f"  Energy: {avg_features['energy']:.2f}, Danceability: {avg_features['danceability']:.2f}")
+            logging.info(f"  Valence: {avg_features['valence']:.2f}, Tempo: {avg_features['tempo']:.0f} BPM")
+
+        except Exception as e:
+            logging.error(f"[Top Tracks] Could not analyze audio features: {e}")
+            # Fallback to default features
+            avg_features = {
+                'energy': 0.6,
+                'danceability': 0.6,
+                'valence': 0.5,
+                'tempo': 120,
+                'acousticness': 0.3,
+                'instrumentalness': 0.0,
+                'speechiness': 0.1,
+            }
+
+        # STEP 3: Get top artists as seeds (more reliable than track seeds)
+        top_artists = []
+        artist_counts = {}
+        for track in seed_tracks:
+            for artist in track['artists']:
+                artist_id = artist['id']
+                if artist_id not in artist_counts:
+                    artist_counts[artist_id] = {'id': artist_id, 'name': artist['name'], 'count': 0}
+                artist_counts[artist_id]['count'] += 1
+
+        # Sort by count and take top 5 artists
+        top_artists = sorted(artist_counts.values(), key=lambda x: x['count'], reverse=True)[:5]
+        seed_artist_ids = [artist['id'] for artist in top_artists]
+
+        logging.info(f"[Top Tracks] Using top {len(seed_artist_ids)} artists as seeds:")
+        for artist in top_artists:
+            logging.info(f"  - {artist['name']} ({artist['count']} tracks)")
+
+        # STEP 4: Build filter list
         all_recommendations = []
         seen_track_ids = set()
 
-        # Filter out ALL recently played tracks - we want only NEW discoveries
+        # Filter out ALL recently played tracks
         for item in recently_played_items:
             seen_track_ids.add(item['track']['id'])
 
-        # Filter out ALL top tracks (short, medium, long term) - songs you've already heard a lot
+        # Filter out ALL top tracks (short, medium, long term)
         for time_range in ['short_term', 'medium_term', 'long_term']:
             try:
                 top_tracks = sp.current_user_top_tracks(limit=50, time_range=time_range)
@@ -2936,73 +2993,72 @@ def get_top_tracks_playlist():
             except Exception as e:
                 logging.warning(f"[Top Tracks] Could not get {time_range} top tracks for filtering: {e}")
 
-        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks (only NEW songs)")
+        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks")
 
-        for idx, seed_track in enumerate(seed_tracks):
-            track_name = seed_track['name']
-            track_id = seed_track['id']
-            track_artist = seed_track['artists'][0]['name']
+        # STEP 5: Get recommendations using seed artists + audio feature targets
+        logging.info("[Top Tracks] Requesting recommendations with audio feature matching...")
 
-            try:
-                # Get Spotify radio recommendations (request more to filter duplicates)
-                logging.info(f"[Top Tracks] [{idx+1}/{len(seed_tracks)}] Getting recs for '{track_name}' by {track_artist}")
-                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=50)
-                radio_tracks = radio_recs.get('tracks', [])
+        try:
+            # Request 100 recommendations using artist seeds and target audio features
+            radio_recs = sp.recommendations(
+                seed_artists=seed_artist_ids,
+                limit=100,
+                target_energy=avg_features['energy'],
+                target_danceability=avg_features['danceability'],
+                target_valence=avg_features['valence'],
+                target_tempo=avg_features['tempo'],
+                target_acousticness=avg_features['acousticness'],
+                target_instrumentalness=avg_features['instrumentalness'],
+                target_speechiness=avg_features['speechiness']
+            )
+            radio_tracks = radio_recs.get('tracks', [])
 
-                logging.info(f"[Top Tracks] Spotify returned {len(radio_tracks)} recommendations")
+            logging.info(f"[Top Tracks] Spotify returned {len(radio_tracks)} recommendations using audio features")
 
-                # Count duplicates vs new
-                duplicate_count = 0
-                new_count = 0
-                for rt in radio_tracks:
-                    if rt['id'] in seen_track_ids:
-                        duplicate_count += 1
-                    else:
-                        new_count += 1
-
-                logging.info(f"[Top Tracks] Analysis: {new_count} NEW songs, {duplicate_count} already-heard (duplicates)")
-
-                # Log first 10 to see what Spotify is actually returning
-                for i, rt in enumerate(radio_tracks[:10]):
-                    is_duplicate = rt['id'] in seen_track_ids
-                    status = "ALREADY HEARD" if is_duplicate else "NEW"
-                    logging.info(f"[Top Tracks]   #{i+1}: '{rt['name']}' by {rt['artists'][0]['name']} [{status}]")
-
-                if len(radio_tracks) > 10:
-                    logging.info(f"[Top Tracks]   ... and {len(radio_tracks) - 10} more recommendations")
-
-                if radio_tracks:
-                    # Take up to 2 NEW recommendations per seed
-                    found_count = 0
-                    for candidate in radio_tracks:
-                        if candidate['id'] not in seen_track_ids:
-                            seen_track_ids.add(candidate['id'])
-                            all_recommendations.append({
-                                'id': candidate['id'],
-                                'name': candidate['name'],
-                                'artist': ', '.join([artist['name'] for artist in candidate['artists']]),
-                                'artists': [{'name': artist['name'], 'id': artist['id']} for artist in candidate['artists']],
-                                'album': candidate['album']['name'],
-                                'album_art': candidate['album']['images'][0]['url'] if candidate['album']['images'] else None,
-                                'artist_id': candidate['artists'][0]['id'] if candidate['artists'] else None,
-                                'preview_url': candidate.get('preview_url'),
-                                'uri': candidate['uri']
-                            })
-                            logging.info(f"[Top Tracks] ✓ SELECTED NEW DISCOVERY: '{candidate['name']}' by {candidate['artists'][0]['name']}")
-                            found_count += 1
-                            if found_count >= 2:  # Take 2 NEW songs per seed
-                                break
-
-                    if found_count == 0:
-                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were already-heard for seed '{track_name}'")
-                    else:
-                        logging.info(f"[Top Tracks] ✓ Found {found_count} new discoveries from this seed")
+            # Count duplicates vs new
+            duplicate_count = 0
+            new_count = 0
+            for rt in radio_tracks:
+                if rt['id'] in seen_track_ids:
+                    duplicate_count += 1
                 else:
-                    logging.warning(f"[Top Tracks] ✗ Spotify returned 0 recommendations for '{track_name}'")
+                    new_count += 1
 
-            except Exception as e:
-                logging.error(f"[Top Tracks] ✗ ERROR for '{track_name}': {e}")
-                continue
+            logging.info(f"[Top Tracks] Analysis: {new_count} NEW songs, {duplicate_count} already-heard")
+
+            # Log first 15 to see what we got
+            logging.info("[Top Tracks] First 15 recommendations:")
+            for i, rt in enumerate(radio_tracks[:15]):
+                is_duplicate = rt['id'] in seen_track_ids
+                status = "ALREADY HEARD" if is_duplicate else "NEW ✓"
+                logging.info(f"  #{i+1}: '{rt['name']}' by {rt['artists'][0]['name']} [{status}]")
+
+            if len(radio_tracks) > 15:
+                logging.info(f"  ... and {len(radio_tracks) - 15} more")
+
+            # Take all NEW recommendations
+            found_count = 0
+            for candidate in radio_tracks:
+                if candidate['id'] not in seen_track_ids:
+                    seen_track_ids.add(candidate['id'])
+                    all_recommendations.append({
+                        'id': candidate['id'],
+                        'name': candidate['name'],
+                        'artist': ', '.join([artist['name'] for artist in candidate['artists']]),
+                        'artists': [{'name': artist['name'], 'id': artist['id']} for artist in candidate['artists']],
+                        'album': candidate['album']['name'],
+                        'album_art': candidate['album']['images'][0]['url'] if candidate['album']['images'] else None,
+                        'artist_id': candidate['artists'][0]['id'] if candidate['artists'] else None,
+                        'preview_url': candidate.get('preview_url'),
+                        'uri': candidate['uri']
+                    })
+                    found_count += 1
+
+            logging.info(f"[Top Tracks] ✓ Selected {found_count} NEW discoveries")
+
+        except Exception as e:
+            logging.error(f"[Top Tracks] ✗ ERROR getting recommendations: {e}")
+            logging.exception(e)
 
         logging.info(f"[Top Tracks] ========================================")
         logging.info(f"[Top Tracks] FINAL RESULTS:")
