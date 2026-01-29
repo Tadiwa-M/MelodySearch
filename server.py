@@ -2869,23 +2869,27 @@ def get_top_tracks_playlist():
         sp = spotipy.Spotify(auth_manager=auth_manager)
         logging.info("[Top Tracks] Starting personalized playlist generation...")
 
-        # STEP 1: Get listening history (currently playing + recently played)
-        seed_tracks = []
-
-        # Try to get currently playing track first
+        # STEP 1: Get Top Tracks for better recommendations (not recently played)
+        # Using Top Tracks gives more diverse recommendations than recently played
         try:
-            current = sp.current_user_playing_track()
-            if current and current.get('item'):
-                seed_tracks.append(current['item'])
-                logging.info(f"[Top Tracks] Currently playing: {current['item']['name']}")
+            top_tracks_response = sp.current_user_top_tracks(limit=20, time_range='medium_term')
+            seed_tracks = top_tracks_response.get('items', [])
+            logging.info(f"[Top Tracks] Got {len(seed_tracks)} top tracks from medium_term")
         except Exception as e:
-            logging.warning(f"[Top Tracks] No currently playing: {e}")
+            logging.error(f"[Top Tracks] Error getting top tracks: {e}")
+            seed_tracks = []
 
-        # Get recently played tracks
-        recently_played = sp.current_user_recently_played(limit=50)
-        recently_played_items = recently_played.get('items', [])
+        # Fallback to recently played if no top tracks
+        if not seed_tracks:
+            try:
+                recently_played = sp.current_user_recently_played(limit=20)
+                recently_played_items = recently_played.get('items', [])
+                seed_tracks = [item['track'] for item in recently_played_items]
+                logging.info(f"[Top Tracks] Fallback: using {len(seed_tracks)} recently played")
+            except Exception as e:
+                logging.error(f"[Top Tracks] Error getting recently played: {e}")
 
-        if not recently_played_items and not seed_tracks:
+        if not seed_tracks:
             logging.warning("[Top Tracks] No listening history")
             return jsonify({
                 "success": True,
@@ -2900,35 +2904,33 @@ def get_top_tracks_playlist():
                 }
             }), 200
 
-        logging.info(f"[Top Tracks] Found {len(recently_played_items)} recently played")
+        # Get recently played to filter out (we don't want to recommend what you just heard)
+        try:
+            recently_played = sp.current_user_recently_played(limit=50)
+            recently_played_items = recently_played.get('items', [])
+            logging.info(f"[Top Tracks] Will filter out {len(recently_played_items)} recently played tracks")
+        except Exception as e:
+            logging.warning(f"[Top Tracks] Could not get recently played for filtering: {e}")
+            recently_played_items = []
 
-        # Add recently played to seeds (limit to 20 for performance)
-        for item in recently_played_items[:20]:
-            track = item['track']
-            # Avoid duplicates in seed list
-            if not any(s['id'] == track['id'] for s in seed_tracks):
-                seed_tracks.append(track)
-
-        logging.info(f"[Top Tracks] Using {len(seed_tracks)} seed tracks")
+        logging.info(f"[Top Tracks] Using {len(seed_tracks)} seed tracks for recommendations")
 
         # Track names for display
         top_track_names = [track['name'] for track in seed_tracks[:5]]
 
-        # STEP 2: Get 1 recommendation per seed using Spotify Radio
+        # STEP 2: Get recommendations using Spotify Radio
         all_recommendations = []
         seen_track_ids = set()
 
-        # Only filter the MOST RECENT tracks (not all 50)
-        # Spotify Radio strategy: Filter recent plays, but allow older history to reappear
-        recent_limit = min(15, len(recently_played_items))
-        for item in recently_played_items[:recent_limit]:
+        # Filter out ALL recently played tracks - we want only NEW discoveries
+        for item in recently_played_items:
             seen_track_ids.add(item['track']['id'])
 
-        # Also add seed tracks (in case currently playing isn't in recently played)
+        # Also add seed tracks to avoid recommending them
         for track in seed_tracks:
             seen_track_ids.add(track['id'])
 
-        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} most recent tracks (out of {len(recently_played_items)} total)")
+        logging.info(f"[Top Tracks] Filtering out {len(seen_track_ids)} already-heard tracks (only NEW songs)")
 
         for idx, seed_track in enumerate(seed_tracks):
             track_name = seed_track['name']
@@ -2949,7 +2951,7 @@ def get_top_tracks_playlist():
                     logging.info(f"[Top Tracks]   Option {i+1}: '{rt['name']}' by {rt['artists'][0]['name']} (duplicate: {is_duplicate})")
 
                 if radio_tracks:
-                    # Take multiple recommendations per seed (up to 4)
+                    # Take up to 2 NEW recommendations per seed
                     found_count = 0
                     for candidate in radio_tracks:
                         if candidate['id'] not in seen_track_ids:
@@ -2965,13 +2967,13 @@ def get_top_tracks_playlist():
                                 'preview_url': candidate.get('preview_url'),
                                 'uri': candidate['uri']
                             })
-                            logging.info(f"[Top Tracks] ✓ SELECTED: '{track_name}' → '{candidate['name']}' by {candidate['artists'][0]['name']}")
+                            logging.info(f"[Top Tracks] ✓ NEW DISCOVERY: '{track_name}' → '{candidate['name']}' by {candidate['artists'][0]['name']}")
                             found_count += 1
-                            if found_count >= 4:  # Take up to 4 per seed
+                            if found_count >= 2:  # Take 2 NEW songs per seed
                                 break
 
                     if found_count == 0:
-                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were duplicates for '{track_name}'")
+                        logging.warning(f"[Top Tracks] ✗ All {len(radio_tracks)} recommendations were already in your history for '{track_name}'")
                 else:
                     logging.warning(f"[Top Tracks] ✗ Spotify returned 0 recommendations for '{track_name}'")
 
@@ -2983,13 +2985,13 @@ def get_top_tracks_playlist():
 
         # If no NEW recommendations found (all were duplicates), return empty
         if len(all_recommendations) == 0:
-            logging.warning("[Top Tracks] All Spotify recommendations were from your listening history")
+            logging.warning("[Top Tracks] Could not find NEW songs - all Spotify recommendations were already in listening history")
             return jsonify({
                 "success": True,
-                "message": "Spotify only recommended songs you've already heard. Try listening to more diverse music!",
+                "message": "All recommendations were songs you've already played. Try exploring new genres!",
                 "playlist": {
-                    "name": "Songs You'd Like",
-                    "description": "Need more diverse listening history for better recommendations",
+                    "name": "Discover New Songs",
+                    "description": "No new discoveries available - broaden your listening!",
                     "tracks": [],
                     "track_count": 0,
                     "cover_images": [],
@@ -3020,8 +3022,8 @@ def get_top_tracks_playlist():
         return jsonify({
             "success": True,
             "playlist": {
-                "name": "Songs You'd Like",
-                "description": f"Personalized picks • Based on {', '.join(top_track_names[:3])} and more",
+                "name": "Discover New Songs",
+                "description": f"NEW songs you haven't heard • Based on {', '.join(top_track_names[:3])} and more",
                 "tracks": playlist_tracks,
                 "track_count": len(playlist_tracks),
                 "cover_images": cover_images[:4],
