@@ -2935,9 +2935,9 @@ def get_top_tracks_playlist():
             track_artist = seed_track['artists'][0]['name']
 
             try:
-                # Get Spotify radio recommendations
+                # Get Spotify radio recommendations (request more to filter duplicates)
                 logging.info(f"[Top Tracks] [{idx+1}/{len(seed_tracks)}] Getting recs for '{track_name}' by {track_artist}")
-                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=5)
+                radio_recs = sp.recommendations(seed_tracks=[track_id], limit=50)
                 radio_tracks = radio_recs.get('tracks', [])
 
                 logging.info(f"[Top Tracks] Got {len(radio_tracks)} recommendations from Spotify")
@@ -2979,22 +2979,21 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Generated {len(all_recommendations)} recommendations")
 
-        # Fallback if no recommendations
+        # If no NEW recommendations found (all were duplicates), return empty
         if len(all_recommendations) == 0:
-            logging.warning("[Top Tracks] No recommendations, using fallback")
-            for item in recently_played_items[:20]:
-                track = item['track']
-                all_recommendations.append({
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artist': ', '.join([artist['name'] for artist in track['artists']]),
-                    'artists': [{'name': artist['name'], 'id': artist['id']} for artist in track['artists']],
-                    'album': track['album']['name'],
-                    'album_art': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                    'artist_id': track['artists'][0]['id'] if track['artists'] else None,
-                    'preview_url': track.get('preview_url'),
-                    'uri': track['uri']
-                })
+            logging.warning("[Top Tracks] All Spotify recommendations were from your listening history")
+            return jsonify({
+                "success": True,
+                "message": "Spotify only recommended songs you've already heard. Try listening to more diverse music!",
+                "playlist": {
+                    "name": "Songs You'd Like",
+                    "description": "Need more diverse listening history for better recommendations",
+                    "tracks": [],
+                    "track_count": 0,
+                    "cover_images": [],
+                    "seed_tracks": top_track_names
+                }
+            }), 200
 
         # Take top 20 (NO sorting - keep recommendation order)
         playlist_tracks = all_recommendations[:20]
