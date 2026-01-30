@@ -2997,10 +2997,10 @@ def get_top_tracks_playlist():
 
         # STEP 5: Get more tracks from your top artists (all discovery APIs are broken - 404)
         logging.info("[Top Tracks] All Spotify discovery APIs broken - using your top artists instead")
-        logging.info("[Top Tracks] Getting more tracks from your favorite artists...")
+        logging.info("[Top Tracks] Getting diverse tracks from your favorite artists...")
 
-        # Just use the top artists we already have
-        artists_to_explore = top_artists[:10]  # Use top 10 artists
+        # Use top 10 artists for variety
+        artists_to_explore = top_artists[:10]
 
         try:
             for idx, artist in enumerate(artists_to_explore):
@@ -3008,17 +3008,21 @@ def get_top_tracks_playlist():
                     artist_id = artist['id']
                     artist_name = artist['name']
 
-                    # Get all albums by this artist
+                    # Get albums by this artist
                     albums_result = sp.artist_albums(artist_id, limit=20, album_type='album,single')
                     albums = albums_result.get('items', [])
 
-                    logging.info(f"[Top Tracks] [{idx+1}/{len(artists_to_explore)}] {artist_name}: {len(albums)} albums/singles")
+                    logging.info(f"[Top Tracks] [{idx+1}/{len(artists_to_explore)}] {artist_name}: {len(albums)} albums")
 
-                    # Get tracks from albums
-                    for album in albums[:5]:  # Limit to 5 most recent albums
+                    tracks_from_this_artist = 0
+
+                    # Get tracks from albums (take 1-2 per album for variety)
+                    for album in albums[:10]:  # Check up to 10 albums
                         try:
                             album_tracks = sp.album_tracks(album['id'], limit=50)
                             tracks = album_tracks.get('items', [])
+
+                            tracks_from_this_album = 0
 
                             for track in tracks:
                                 if track['id'] and track['id'] not in seen_track_ids:
@@ -3038,27 +3042,34 @@ def get_top_tracks_playlist():
                                             'uri': full_track['uri']
                                         })
 
-                                        # Stop if we have enough
-                                        if len(all_recommendations) >= 30:
+                                        tracks_from_this_album += 1
+                                        tracks_from_this_artist += 1
+
+                                        # Only take 2 tracks per album for variety
+                                        if tracks_from_this_album >= 2:
                                             break
                                     except:
                                         continue
 
-                            if len(all_recommendations) >= 30:
+                            # Only take 4 tracks per artist to ensure variety
+                            if tracks_from_this_artist >= 4:
+                                logging.info(f"[Top Tracks]   ✓ Added {tracks_from_this_artist} tracks from {artist_name}")
                                 break
+
                         except Exception as e:
                             logging.error(f"[Top Tracks] Error getting album tracks: {e}")
                             continue
 
+                    if tracks_from_this_artist > 0:
+                        logging.info(f"[Top Tracks]   ✓ Found {tracks_from_this_artist} NEW tracks from {artist_name}")
+
+                    # Stop when we have enough total
                     if len(all_recommendations) >= 30:
-                        logging.info(f"[Top Tracks] Reached 30 tracks, stopping")
+                        logging.info(f"[Top Tracks] Reached 30 tracks total")
                         break
 
-                    if len(all_recommendations) > 0:
-                        logging.info(f"[Top Tracks]   ✓ Found {len(all_recommendations)} NEW tracks so far")
-
                 except Exception as e:
-                    logging.error(f"[Top Tracks] Error getting tracks for {artist_name}: {e}")
+                    logging.error(f"[Top Tracks] Error exploring {artist_name}: {e}")
                     continue
 
             logging.info(f"[Top Tracks] Successfully processed related artists")
