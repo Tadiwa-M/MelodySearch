@@ -3051,8 +3051,8 @@ def get_top_tracks_playlist():
                                     except:
                                         continue
 
-                            # Only take 4 tracks per artist to ensure variety
-                            if tracks_from_this_artist >= 4:
+                            # Only take 2 tracks per artist for maximum variety
+                            if tracks_from_this_artist >= 2:
                                 logging.info(f"[Top Tracks]   ✓ Added {tracks_from_this_artist} tracks from {artist_name}")
                                 break
 
@@ -3106,18 +3106,26 @@ def get_top_tracks_playlist():
 
         logging.info(f"[Top Tracks] Final playlist: {len(playlist_tracks)} tracks")
 
-        # Generate cover images from playlist
-        cover_tracks = playlist_tracks[:4] if len(playlist_tracks) >= 4 else playlist_tracks
-        cover_images = [track['album_art'] for track in cover_tracks if track['album_art']]
+        # Generate cover images from playlist (ensure unique album covers - max 1 per album)
+        cover_images = []
+        seen_album_art = set()
 
-        # Pad with seed tracks if needed
+        for track in playlist_tracks:
+            if track['album_art'] and track['album_art'] not in seen_album_art:
+                cover_images.append(track['album_art'])
+                seen_album_art.add(track['album_art'])
+                if len(cover_images) >= 4:
+                    break
+
+        # Pad with seed tracks if needed (ensure still unique)
         if len(cover_images) < 4:
             for track in seed_tracks:
                 if len(cover_images) >= 4:
                     break
                 album_art = track['album']['images'][0]['url'] if track['album']['images'] else None
-                if album_art and album_art not in cover_images:
+                if album_art and album_art not in seen_album_art:
                     cover_images.append(album_art)
+                    seen_album_art.add(album_art)
 
         logging.info("[Top Tracks] SUCCESS!")
 
